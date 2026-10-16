@@ -1,0 +1,12 @@
+{
+  "name": "smartfamilyops-classification-rule-builder",
+  "private": true,
+  "version": "0.4.0",
+  "type": "module",
+  "scripts": {
+    "test": "node --test --test-isolation=none"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

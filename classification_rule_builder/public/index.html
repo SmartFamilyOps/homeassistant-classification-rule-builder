@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SmartFamilyOps Classification Rule Builder</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="hero">
+    <div>
+      <p class="eyebrow">SmartFamilyOps</p>
+      <h1>Classification Rule Builder</h1>
+      <p class="lede">Turn Home Assistant device evidence into deterministic, maintainable classifications—without editing Jinja.</p>
+    </div>
+    <div id="rule-actions" class="hero-actions">
+      <button id="discover" class="secondary">Refresh Home Assistant data</button>
+      <button id="check-updates" class="secondary">Check for app updates</button>
+      <button id="reload-app" class="secondary">Reload app interface</button>
+      <button id="save" disabled>Validate &amp; publish</button>
+    </div>
+  </header>
+
+  <nav class="app-tabs" aria-label="App configuration sections" role="tablist">
+    <button id="rules-tab" class="app-tab active" type="button" role="tab" aria-selected="true" aria-controls="rules-view" data-view="rules">Classification Rules</button>
+    <button id="dashboards-tab" class="app-tab" type="button" role="tab" aria-selected="false" aria-controls="dashboards-view" data-view="dashboards">Dashboard Builder</button>
+  </nav>
+
+  <main>
+    <section id="update-result" class="update-result" aria-live="polite" hidden>
+      <div>
+        <strong id="update-title">App version checked</strong>
+        <span id="update-detail"></span>
+      </div>
+      <button id="manage-app" type="button" class="secondary small">Open Home Assistant app page</button>
+    </section>
+
+    <section id="rules-view" class="app-view" role="tabpanel" aria-labelledby="rules-tab">
+    <section class="status-strip" aria-live="polite">
+      <span id="status-dot" class="dot waiting"></span>
+      <strong id="status-title">Loading rules…</strong>
+      <span id="status-detail">The current catalogue is being read from Home Assistant.</span>
+    </section>
+
+    <section class="summary" aria-label="Catalogue summary">
+      <article><strong id="rule-count">—</strong><span>rules</span></article>
+      <article><strong id="device-count">—</strong><span>devices discovered</span></article>
+      <article><strong id="disabled-count">—</strong><span>disabled entities included</span></article>
+      <article><strong id="changed-count">—</strong><span>preview changes</span></article>
+    </section>
+
+    <section class="workspace">
+      <aside>
+        <div class="section-heading">
+          <div><p class="eyebrow">Top to bottom</p><h2>Rules</h2></div>
+          <button id="add-rule" class="icon-button" title="Add rule" aria-label="Add rule">＋</button>
+        </div>
+        <p class="help">The first matching enabled rule wins. Use the arrows to change precedence.</p>
+        <div id="rule-list" class="rule-list"></div>
+      </aside>
+
+      <section id="editor-panel" class="editor-panel">
+        <div id="empty-editor" class="empty-state">
+          <div class="empty-icon">✓</div>
+          <h2>Select a rule</h2>
+          <p>Choose a rule to edit its evidence and classification.</p>
+        </div>
+        <form id="rule-editor" hidden>
+          <div class="editor-heading">
+            <div>
+              <p class="eyebrow">Rule details</p>
+              <h2 id="editor-title">Edit rule</h2>
+            </div>
+            <label class="switch"><input id="enabled" type="checkbox"><span></span><b>Enabled</b></label>
+          </div>
+
+          <div class="form-grid two">
+            <label>Rule name<input id="name" required maxlength="100"></label>
+            <label>Function shown on dashboard<input id="function" required maxlength="100"></label>
+          </div>
+          <div class="form-grid two compact-grid">
+            <label>Logical asset group <span class="optional">optional</span><input id="asset-group" maxlength="100" placeholder="e.g. front-door-lock"></label>
+            <label>Source role<select id="source-role"><option value="standalone">Standalone device</option><option value="primary">Primary source</option><option value="duplicate">Duplicate source</option></select></label>
+          </div>
+          <label>Battery Health dashboard<select id="battery-health"><option value="automatic">Automatic — include when a battery entity exists</option><option value="include">Include</option><option value="exclude">Exclude</option></select></label>
+          <label>Classification evidence / explanation<textarea id="reason" required rows="2" maxlength="300"></textarea></label>
+
+          <div class="conditions-heading">
+            <div><h3>Conditions</h3><p>Every condition must match unless you choose “any”.</p></div>
+            <div class="condition-actions">
+              <select id="match"><option value="all">Match all conditions</option><option value="any">Match any condition</option></select>
+              <button id="add-condition" type="button" class="secondary small">＋ Add condition</button>
+            </div>
+          </div>
+          <div id="conditions"></div>
+
+          <div class="editor-footer">
+            <div class="order-actions">
+              <button id="move-up" type="button" class="secondary small">↑ Earlier</button>
+              <button id="move-down" type="button" class="secondary small">↓ Later</button>
+              <button id="duplicate" type="button" class="secondary small">Duplicate</button>
+            </div>
+            <button id="delete-rule" type="button" class="danger small">Delete rule</button>
+          </div>
+        </form>
+      </section>
+    </section>
+
+    <section class="preview-panel">
+      <div class="section-heading">
+        <div><p class="eyebrow">Before publishing</p><h2>Device preview</h2></div>
+        <label class="filter">Show <select id="device-filter"><option value="battery_health">Battery Health dashboard</option><option value="excluded">Excluded from Battery Health</option><option value="all">All devices — hide duplicates</option><option value="duplicates">Duplicate sources only</option><option value="all_with_duplicates">All devices — include duplicates</option><option value="changed">Changed only</option></select></label>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th class="row-number">#</th><th>Device</th><th>Manufacturer</th><th>Location</th><th>Function</th><th>Battery Health</th><th>Logical asset</th><th>Matched rule</th><th>Entities</th></tr></thead>
+          <tbody id="preview-body"><tr><td colspan="9" class="empty-cell">Discovering Home Assistant devices…</td></tr></tbody>
+        </table>
+      </div>
+      <nav id="preview-pagination" class="pagination" aria-label="Device preview pages" hidden>
+        <span id="preview-page-info">0 rows</span>
+        <div>
+          <button id="preview-previous" type="button" class="secondary small">← Previous</button>
+          <button id="preview-next" type="button" class="secondary small">Next →</button>
+        </div>
+      </nav>
+    </section>
+    </section>
+
+    <section id="dashboards-view" class="app-view" role="tabpanel" aria-labelledby="dashboards-tab" hidden>
+      <section class="dashboard-builder-intro">
+        <p class="eyebrow">Reusable discovery views</p>
+        <h2>Dashboard Builder</h2>
+        <p>Build operational dashboards from Home Assistant discovery data and the shared classification catalogue. Dashboard definitions will reference the rules rather than copying their logic.</p>
+      </section>
+
+      <section class="dashboard-builder-grid" aria-label="Dashboard builder design preview">
+        <article>
+          <p class="eyebrow">Shared configuration</p>
+          <h3>Classification catalogue</h3>
+          <p><strong id="dashboard-rule-count">—</strong> ordered rules are available to every dashboard definition.</p>
+          <p class="muted">Maintain these once in the Classification Rules tab. Published dashboards consume the same deterministic results.</p>
+        </article>
+        <article>
+          <p class="eyebrow">First reference view</p>
+          <h3>Battery Health</h3>
+          <p>The existing dashboard is the first candidate for import into the reusable dashboard configuration model.</p>
+          <span class="design-status">Ready to model</span>
+        </article>
+        <article>
+          <p class="eyebrow">Next capability</p>
+          <h3>Dashboard definitions</h3>
+          <p>Configure columns, filters, sorting, duplicate handling, status presentation and row actions, then preview before publishing.</p>
+          <span class="design-status planned">Planned in SFO-137</span>
+        </article>
+      </section>
+
+      <section class="configuration-flow" aria-label="Configuration flow">
+        <strong>Home Assistant discovery</strong><span>→</span><strong>Shared classification rules</strong><span>→</span><strong>Dashboard definitions</strong><span>→</span><strong>Preview and publish</strong>
+      </section>
+    </section>
+  </main>
+
+  <dialog id="confirm-dialog">
+    <form method="dialog">
+      <p class="eyebrow">Publish checked rules</p>
+      <h2>Apply this catalogue?</h2>
+      <p id="confirm-copy">The generated Jinja will replace the managed classifier and custom templates will reload.</p>
+      <div id="validation-errors" class="errors" hidden></div>
+      <div class="dialog-actions"><button value="cancel" class="secondary">Cancel</button><button id="confirm-save" value="default">Publish rules</button></div>
+    </form>
+  </dialog>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
