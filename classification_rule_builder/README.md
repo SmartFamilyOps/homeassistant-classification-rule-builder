@@ -109,4 +109,4 @@ reported as an import error and is never silently replaced.
 
 If a published rule is logically wrong but valid, use the app to correct or reorder it and publish again. For manual recovery, copy the required paired catalogue/template backup into their managed paths and run the Home Assistant action `homeassistant.reload_custom_templates`.
 
-The builder never stores a Home Assistant token. Its protected container receives the short-lived Supervisor token at runtime and uses it only for registry discovery, validation, template reload and the user-initiated app-store metadata refresh/version check.
+The builder never stores a Home Assistant token. Its protected container receives the short-lived Supervisor token at runtime and uses it only through Home Assistant's Core API proxy for registry discovery, validation and template reload.
