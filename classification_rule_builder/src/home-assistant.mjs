@@ -1,8 +1,6 @@
 const HA_URL = (process.env.HA_URL ?? "http://supervisor/core").replace(/\/$/, "");
 const HA_WS_URL = process.env.HA_WS_URL ?? "ws://supervisor/core/api/websocket";
 const HA_TOKEN = process.env.HA_TOKEN ?? "";
-const SUPERVISOR_URL = (process.env.SUPERVISOR_URL ?? "http://supervisor").replace(/\/$/, "");
-const SUPERVISOR_TOKEN = process.env.SUPERVISOR_TOKEN ?? HA_TOKEN;
 
 async function request(path, options = {}) {
   const response = await fetch(`${HA_URL}${path}`, {
@@ -17,55 +15,6 @@ async function request(path, options = {}) {
   if (!response.ok) throw new Error(`Home Assistant returned HTTP ${response.status} for ${path}.`);
   const body = await response.text();
   return body ? JSON.parse(body) : null;
-}
-
-async function supervisorRequest(path, options = {}) {
-  const response = await fetch(`${SUPERVISOR_URL}${path}`, {
-    ...options,
-    headers: {
-      authorization: `Bearer ${SUPERVISOR_TOKEN}`,
-      "content-type": "application/json",
-      ...(options.headers ?? {}),
-    },
-    signal: AbortSignal.timeout(60_000),
-  });
-  const text = await response.text();
-  let payload = null;
-  if (text) {
-    try {
-      payload = JSON.parse(text);
-    } catch {
-      const detail = text.trim().slice(0, 160);
-      if (!response.ok) {
-        throw new Error(`Home Assistant Supervisor returned HTTP ${response.status} for ${path}${detail ? `: ${detail}` : "."}`);
-      }
-      throw new Error(`Home Assistant Supervisor returned an invalid response for ${path}.`);
-    }
-  }
-  if (!response.ok || payload?.result === "error") {
-    const message = payload?.message || `Home Assistant Supervisor returned HTTP ${response.status} for ${path}.`;
-    throw new Error(message);
-  }
-  return payload?.data ?? payload;
-}
-
-export function summariseAppInfo(info) {
-  const installedVersion = String(info?.version ?? "unknown");
-  const latestVersion = String(info?.version_latest ?? installedVersion);
-  const slug = String(info?.slug ?? "local_classification_rule_builder");
-  return {
-    installed_version: installedVersion,
-    latest_version: latestVersion,
-    update_available: Boolean(info?.update_available),
-    state: String(info?.state ?? "unknown"),
-    management_path: `/config/app/${encodeURIComponent(slug)}/info`,
-  };
-}
-
-export async function checkForAppUpdates() {
-  await supervisorRequest("/store/reload", { method: "POST", body: "{}" });
-  const info = await supervisorRequest("/addons/self/info");
-  return summariseAppInfo(info);
 }
 
 export async function validateTemplate(template) {

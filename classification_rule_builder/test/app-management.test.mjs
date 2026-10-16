@@ -1,23 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { summariseAppInfo, summariseDeviceEntities } from "../src/home-assistant.mjs";
-
-test("app info summary reports installed and latest versions with a management path", () => {
-  assert.deepEqual(summariseAppInfo({
-    slug: "local_classification_rule_builder",
-    version: "0.3.0",
-    version_latest: "0.3.1",
-    update_available: true,
-    state: "started",
-  }), {
-    installed_version: "0.3.0",
-    latest_version: "0.3.1",
-    update_available: true,
-    state: "started",
-    management_path: "/config/app/local_classification_rule_builder/info",
-  });
-});
+import { summariseDeviceEntities } from "../src/home-assistant.mjs";
 
 test("device entity summary counts enabled entities and requires one available state for online", () => {
   const entities = [
@@ -38,16 +22,16 @@ test("device entity summary counts enabled entities and requires one available s
   assert.equal(summariseDeviceEntities(entities, states).online, false);
 });
 
-test("the app exposes refresh, update-check and interface-reload controls", async () => {
+test("the app exposes discovery, Apps navigation and interface-reload controls", async () => {
   const html = await readFile(new URL("../public/index.html", import.meta.url), "utf8");
   const script = await readFile(new URL("../public/app.js", import.meta.url), "utf8");
-  const config = await readFile(new URL("../config.yaml", import.meta.url), "utf8");
   assert.match(html, /id="discover"[^>]*>Refresh Home Assistant data</);
-  assert.match(html, /id="check-updates"[^>]*>Check for app updates</);
+  assert.match(html, /id="open-apps"[^>]*>Open Home Assistant Apps</);
   assert.match(html, /id="reload-app"[^>]*>Reload app interface</);
-  assert.match(script, /api\("app-update-check"/);
+  assert.match(script, /window\.top\.location\.assign\("\/config\/apps\/installed"\)/);
   assert.match(script, /window\.location\.reload\(\)/);
-  assert.match(config, /^hassio_api: true$/m);
+  assert.doesNotMatch(html, /Check for app updates/);
+  assert.doesNotMatch(script, /app-update-check/);
 });
 
 test("summary groups device and entity totals with active and inactive breakdowns", async () => {

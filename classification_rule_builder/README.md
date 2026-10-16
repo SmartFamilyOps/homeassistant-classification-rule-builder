@@ -22,7 +22,7 @@ The app configuration is organised into two in-app sections:
 - Groups multiple Home Assistant records that represent one physical asset and marks primary or duplicate sources explicitly.
 - Makes Battery Health dashboard membership an explicit rule outcome: include, exclude, or automatic when a battery entity exists.
 - Recognises and imports the established SmartFamilyOps Jinja classifier on first run; an unfamiliar template is refused rather than overwritten.
-- Refreshes Home Assistant app-store metadata and reports the installed and latest app versions without installing an update automatically.
+- Opens Home Assistant's installed-apps page for update checks and app management without granting this app elevated Supervisor permissions.
 - Reloads the app interface on demand and serves frontend assets without browser caching so a newly installed interface appears immediately.
 
 ## Managed files
@@ -94,7 +94,7 @@ Renaming the slug would install a second app identity rather than provide a
 cosmetic redirect, so a future branded URL migration must copy the managed
 catalogue and app options before the old identity is retired.
 
-The **Classification Rules** and **Dashboard Builder** tabs are inside **Open Web UI** (and the app's sidebar page). Home Assistant's outer **Info**, **Documentation**, **Configuration** and **Log** tabs are fixed app-management tabs. Use **Check for app updates** inside the Web UI to refresh store metadata and compare versions; installation remains on the Home Assistant app page. **Refresh Home Assistant data** re-reads device, entity and area discovery without replacing unpublished rule edits. **Reload app interface** reconnects the ingress page and warns before discarding unpublished edits.
+The **Classification Rules** and **Dashboard Builder** tabs are inside **Open Web UI** (and the app's sidebar page). Home Assistant's outer **Info**, **Documentation**, **Configuration** and **Log** tabs are fixed app-management tabs. Use **Open Home Assistant Apps** to go directly to Home Assistant's installed-apps page, where its own refresh control checks for updates. **Refresh Home Assistant data** re-reads device, entity and area discovery without replacing unpublished rule edits. **Reload app interface** reconnects the ingress page and warns before discarding unpublished edits.
 
 On its first run, it presents a starter catalogue containing the rules already established for BILRESA controls, the SwitchBot Keypad Vision Pro, TIMMERFLOTTE, cameras, motion detectors, locks and contact sensors. Nothing is written until **Validate & publish** is selected and confirmed.
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.4
+
+- Replace the unsuccessful in-app Supervisor update check with direct navigation to Home Assistant's installed-apps page.
+- Remove unnecessary Supervisor API access instead of granting the app an elevated manager role solely for store refreshes.
+- Keep update refresh and installation under the authenticated Home Assistant user session.
+
 ## 0.4.3
 
 - Strengthen the Rules and Rule Details relationship with a shared branded blue selection surface.

@@ -6,7 +6,7 @@ Use the **Classification Rules** tab to maintain the shared catalogue. The **Das
 
 These tabs are inside **Open Web UI** and the app's sidebar page. They do not replace Home Assistant's fixed **Info**, **Documentation**, **Configuration** and **Log** app-management tabs.
 
-Use **Refresh Home Assistant data** to re-read device, entity and area discovery while preserving unpublished rule edits. Use **Check for app updates** to refresh Home Assistant's app-store metadata and compare the installed and latest versions. Updates are reviewed and installed on the Home Assistant app page. Use **Reload app interface** to reconnect the ingress UI; the app warns before discarding unpublished edits.
+Use **Refresh Home Assistant data** to re-read device, entity and area discovery while preserving unpublished rule edits. Use **Open Home Assistant Apps** to review installed versions and run Home Assistant's own update refresh. Use **Reload app interface** to reconnect the ingress UI; the app warns before discarding unpublished edits.
 
 On first launch, the app reads the existing SmartFamilyOps classifier from Home Assistant. A recognised legacy catalogue is translated into editable rules. No live file changes until **Validate & publish** is confirmed.
 

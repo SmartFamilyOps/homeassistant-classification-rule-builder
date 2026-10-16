@@ -2,7 +2,7 @@ import http from "node:http";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { checkForAppUpdates, discoverDevices, reloadCustomTemplates, validateTemplate } from "./home-assistant.mjs";
+import { discoverDevices, reloadCustomTemplates, validateTemplate } from "./home-assistant.mjs";
 import { catalogueRevision, classifyDevice, FIELD_DEFINITIONS, generateJinja, OPERATORS, validateCatalogue } from "./rules.mjs";
 import { pathsForStatus, pruneBackups, readCatalogue, restoreFiles, saveFiles } from "./storage.mjs";
 
@@ -41,9 +41,6 @@ async function handle(request, response) {
   if (request.method === "GET" && url.pathname.endsWith("/api/discovery")) {
     const devices = await discoverDevices();
     return json(response, 200, { devices });
-  }
-  if (request.method === "POST" && url.pathname.endsWith("/api/app-update-check")) {
-    return json(response, 200, await checkForAppUpdates());
   }
   if (request.method === "POST" && url.pathname.endsWith("/api/validate")) {
     const payload = await body(request);

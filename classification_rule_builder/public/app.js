@@ -7,7 +7,6 @@ const state = {
   selected: null,
   dirty: false,
   previewPage: 1,
-  appManagementPath: null,
 };
 
 const PREVIEW_PAGE_SIZE = 20;
@@ -388,33 +387,6 @@ async function discover() {
   }
 }
 
-async function checkForUpdates() {
-  const button = $("#check-updates");
-  const resultPanel = $("#update-result");
-  button.disabled = true;
-  resultPanel.hidden = true;
-  status("waiting", "Checking for app updates", "Asking Home Assistant to refresh its app-store metadata.");
-  try {
-    const result = await api("app-update-check", { method: "POST", body: "{}" });
-    state.appManagementPath = result.management_path;
-    $("#update-title").textContent = result.update_available ? "App update available" : "App is up to date";
-    $("#update-detail").textContent = result.update_available
-      ? `Installed ${result.installed_version}; latest ${result.latest_version}. Open the Home Assistant app page to review and install it.`
-      : `Installed ${result.installed_version}; latest ${result.latest_version}.`;
-    resultPanel.classList.toggle("available", result.update_available);
-    resultPanel.hidden = false;
-    status(
-      state.dirty ? "waiting" : "ok",
-      state.dirty ? "Unpublished changes" : "Update check complete",
-      result.update_available ? `Version ${result.latest_version} is available.` : `Version ${result.installed_version} is current.`,
-    );
-  } catch (error) {
-    status("error", "Update check failed", `${error.message} Use Settings → Apps → Check for updates as a fallback.`);
-  } finally {
-    button.disabled = false;
-  }
-}
-
 async function validateDraft() {
   status("waiting", "Validating draft", "Checking the rule schema and compiling the generated Jinja in Home Assistant.");
   try {
@@ -516,13 +488,12 @@ $("#device-filter").addEventListener("change", () => { state.previewPage = 1; re
 $("#preview-previous").addEventListener("click", () => { state.previewPage -= 1; renderPreview(); });
 $("#preview-next").addEventListener("click", () => { state.previewPage += 1; renderPreview(); });
 $("#discover").addEventListener("click", discover);
-$("#check-updates").addEventListener("click", () => { void checkForUpdates(); });
+$("#open-apps").addEventListener("click", () => {
+  window.top.location.assign("/config/apps/installed");
+});
 $("#reload-app").addEventListener("click", () => {
   if (state.dirty && !confirm("Reload the app interface and discard the unpublished rule edits in this browser?")) return;
   window.location.reload();
-});
-$("#manage-app").addEventListener("click", () => {
-  if (state.appManagementPath) window.top.location.assign(state.appManagementPath);
 });
 $("#save").addEventListener("click", validateDraft);
 $("#confirm-save").addEventListener("click", (event) => { event.preventDefault(); void publish(); });

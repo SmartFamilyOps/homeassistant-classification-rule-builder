@@ -15,7 +15,7 @@
     </div>
     <div id="rule-actions" class="hero-actions">
       <button id="discover" class="secondary">Refresh Home Assistant data</button>
-      <button id="check-updates" class="secondary">Check for app updates</button>
+      <button id="open-apps" class="secondary">Open Home Assistant Apps</button>
       <button id="reload-app" class="secondary">Reload app interface</button>
       <button id="save" disabled>Validate &amp; publish</button>
     </div>
@@ -27,14 +27,6 @@
   </nav>
 
   <main>
-    <section id="update-result" class="update-result" aria-live="polite" hidden>
-      <div>
-        <strong id="update-title">App version checked</strong>
-        <span id="update-detail"></span>
-      </div>
-      <button id="manage-app" type="button" class="secondary small">Open Home Assistant app page</button>
-    </section>
-
     <section id="rules-view" class="app-view" role="tabpanel" aria-labelledby="rules-tab">
     <section class="status-strip" aria-live="polite">
       <span id="status-dot" class="dot waiting"></span>

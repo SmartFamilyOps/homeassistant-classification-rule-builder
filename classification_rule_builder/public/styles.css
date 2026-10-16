@@ -35,10 +35,6 @@ main { width: min(1450px, calc(100% - 32px)); margin: 22px auto 50px; }
 h2, h3 { color: var(--navy); }
 .status-strip { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; min-height: 48px; padding: 11px 15px; border: 1px solid var(--line); border-radius: 13px; background: rgba(255,255,255,.92); }
 .status-strip #status-detail { color: var(--muted); }
-.update-result { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 14px; padding: 12px 15px; border: 1px solid #b8d5df; border-radius: 13px; background: #eaf4ff; }
-.update-result.available { border-color: #e2bd72; background: #fff8e8; }
-.update-result div { display: grid; gap: 2px; }
-.update-result span { color: var(--muted); }
 .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 4px rgba(22,134,111,.12); }
 .dot.waiting { background: #dd9b28; box-shadow: 0 0 0 4px rgba(221,155,40,.12); }
 .dot.error { background: var(--red); box-shadow: 0 0 0 4px rgba(197,63,85,.12); }
@@ -150,5 +146,4 @@ dialog h2 { margin-top: 4px; }
   .pagination div { display: grid; grid-template-columns: 1fr 1fr; }
   .app-tabs { width: min(100% - 18px, 1450px); }
   .app-tab { flex: 1; padding: 0 8px; }
-  .update-result { align-items: stretch; flex-direction: column; }
 }
