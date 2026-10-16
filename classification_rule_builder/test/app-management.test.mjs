@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { summariseAppInfo } from "../src/home-assistant.mjs";
+import { summariseAppInfo, summariseDeviceEntities } from "../src/home-assistant.mjs";
 
 test("app info summary reports installed and latest versions with a management path", () => {
   assert.deepEqual(summariseAppInfo({
@@ -17,6 +17,25 @@ test("app info summary reports installed and latest versions with a management p
     state: "started",
     management_path: "/config/app/local_classification_rule_builder/info",
   });
+});
+
+test("device entity summary counts enabled entities and requires one available state for online", () => {
+  const entities = [
+    { entity_id: "sensor.example_battery", disabled_by: null },
+    { entity_id: "sensor.example_temperature", disabled_by: null },
+    { entity_id: "sensor.example_diagnostic", disabled_by: "integration" },
+  ];
+  const states = new Map([
+    ["sensor.example_battery", { state: "unavailable" }],
+    ["sensor.example_temperature", { state: "21" }],
+  ]);
+  assert.deepEqual(summariseDeviceEntities(entities, states), {
+    enabled_entity_count: 2,
+    disabled_entity_count: 1,
+    online: true,
+  });
+  states.set("sensor.example_temperature", { state: "unknown" });
+  assert.equal(summariseDeviceEntities(entities, states).online, false);
 });
 
 test("the app exposes refresh, update-check and interface-reload controls", async () => {

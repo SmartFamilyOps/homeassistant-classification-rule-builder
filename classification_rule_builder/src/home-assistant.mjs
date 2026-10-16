@@ -111,6 +111,19 @@ async function registries() {
 
 const cameraTerms = ["person", "vehicle", "animal", "snapshot", "record", "stream", "privacy", "pir"];
 
+export function summariseDeviceEntities(deviceEntities, statesById) {
+  const enabledEntities = deviceEntities.filter((entity) => !entity.disabled_by);
+  const online = enabledEntities.some((entity) => {
+    const state = statesById.get(entity.entity_id)?.state;
+    return state !== undefined && state !== "unavailable" && state !== "unknown";
+  });
+  return {
+    enabled_entity_count: enabledEntities.length,
+    disabled_entity_count: deviceEntities.length - enabledEntities.length,
+    online,
+  };
+}
+
 export async function discoverDevices() {
   const [devices, entities, areas] = await registries();
   const states = await request("/api/states");
@@ -135,6 +148,7 @@ export async function discoverDevices() {
       const state = statesById.get(entity.entity_id);
       return state?.attributes?.device_class === "battery" || entity.entity_id.includes("battery");
     });
+    const entitySummary = summariseDeviceEntities(deviceEntities, statesById);
     return {
       id: device.id,
       name: device.name_by_user || device.name || "Unnamed device",
@@ -143,7 +157,7 @@ export async function discoverDevices() {
       area: areaById.get(device.area_id) || "Unassigned",
       entity_names: entityNames,
       entity_ids: deviceEntities.map((entity) => entity.entity_id),
-      disabled_entity_count: deviceEntities.filter((entity) => entity.disabled_by).length,
+      ...entitySummary,
       entity_count: deviceEntities.length,
       battery,
       camera_evidence: cameraTerms.some((term) => evidence.some((value) => value.includes(term))),

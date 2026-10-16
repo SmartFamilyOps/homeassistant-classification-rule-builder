@@ -104,6 +104,12 @@ function renderSummary() {
   $("#rule-count").textContent = state.catalogue?.rules.length ?? "—";
   $("#dashboard-rule-count").textContent = state.catalogue?.rules.length ?? "—";
   $("#device-count").textContent = state.devices.length || "—";
+  $("#offline-device-count").textContent = state.devices.length
+    ? state.devices.filter((device) => !device.online).length
+    : "—";
+  $("#enabled-count").textContent = state.devices.length
+    ? state.devices.reduce((total, device) => total + device.enabled_entity_count, 0)
+    : "—";
   $("#disabled-count").textContent = state.devices.length
     ? state.devices.reduce((total, device) => total + device.disabled_entity_count, 0)
     : "—";

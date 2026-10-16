@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.1
+
+- Show enabled entity and offline device totals in the catalogue summary.
+- Treat a device as online when at least one enabled entity has a usable runtime state.
+- Reflow the six summary cards across desktop, tablet and mobile widths.
+
 ## 0.4.0
 
 - Publish the Classification Rule Builder from its own Home Assistant app repository.
