@@ -12,5 +12,8 @@ export CONFIG_ROOT="/config"
 export BACKUP_LIMIT="$(bashio::config 'backup_limit')"
 export PORT=8099
 
+install -d /config/www/branding
+install -m 0644 /app/assets/smartfamilyops-logo-transparent.png /config/www/branding/smartfamilyops-logo-transparent.png
+
 bashio::log.info "Starting SmartFamilyOps Discovery Dashboard Builder."
 exec node /app/src/server.mjs

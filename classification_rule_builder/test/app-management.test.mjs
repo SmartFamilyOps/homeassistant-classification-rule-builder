@@ -103,8 +103,11 @@ test("the container includes the maintained Battery Health dashboard source", as
   const dockerfile = await readFile(new URL("../Dockerfile", import.meta.url), "utf8");
   const card = await readFile(new URL("../dashboard/battery-health-card.jinja", import.meta.url), "utf8");
   const example = await readFile(new URL("../../examples/battery-health-dashboard/card.jinja", import.meta.url), "utf8");
+  const runScript = await readFile(new URL("../run.sh", import.meta.url), "utf8");
   assert.match(dockerfile, /COPY dashboard \/app\/dashboard/);
-  assert.match(card, /Battery & Power Observability/);
+  assert.match(dockerfile, /COPY logo\.png \/app\/assets\/smartfamilyops-logo-transparent\.png/);
+  assert.match(runScript, /\/config\/www\/branding\/smartfamilyops-logo-transparent\.png/);
+  assert.doesNotMatch(card, /Protected device telemetry|Battery & Power Observability/);
   assert.match(card, /smartfamilyops_device_catalogue\.jinja/);
   assert.equal(card, example, "the packaged dashboard and documented example must stay identical");
 });

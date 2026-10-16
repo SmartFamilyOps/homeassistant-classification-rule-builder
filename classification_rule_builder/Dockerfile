@@ -16,6 +16,7 @@ COPY run.sh /run.sh
 COPY src /app/src
 COPY public /app/public
 COPY dashboard /app/dashboard
+COPY logo.png /app/assets/smartfamilyops-logo-transparent.png
 RUN chmod 0755 /run.sh
 
 WORKDIR /app

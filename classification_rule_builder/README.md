@@ -139,7 +139,7 @@ render or reload rather than a catalogue publication. If a renamed value is
 used as classification evidence, refresh discovery and publish so the governed
 classification decision can be reviewed.
 
-The Battery Health **Edit Device** column opens `/config/devices/device/{device_id}`.
+The Battery Health **Edit Device** column opens `/config/devices/device/{device_id}` in a separate browser tab. Its compact header uses the controlled transparent SmartFamilyOps logo and the same navy, blue, teal, typography and surface treatment as Front Door Control; the app installs that asset locally under `/config/www/branding`.
 
 The **Dashboard Builder** tab can open any compatible SmartFamilyOps dashboard and save it as a new governed draft. A draft receives a new UUID, a collision-safe `smartfamilyops-dashboards-*` route, a copied Lovelace configuration, a copied but independently editable population policy, an app-owned manifest, administrator-only access and no sidebar entry by default. Existing compatible dashboards can be renamed and have their description, icon, sidebar visibility and administrator access maintained from the same editor.
 This hands configuration back to Home Assistant's native device page and remains

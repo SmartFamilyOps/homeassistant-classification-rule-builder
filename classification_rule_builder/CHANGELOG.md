@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.10.2
+
+- Give Battery Health the same compact SmartFamilyOps brand header, transparent logo, typography, palette and surface treatment as Front Door Control.
+- Package and install the controlled transparent logo locally so the dashboard does not depend on an internet-hosted image.
+- Remove the former technical heading and “Protected device telemetry” strapline from the operational dashboard.
+- Open **Edit Device** links in a separate browser tab while protecting the originating page from the new tab.
+
 ## 0.10.1
 
 - Resolve the displayed device name, area and manufacturer from Home Assistant's live registries on each dashboard render.

@@ -12,6 +12,65 @@ export const LEGACY_BATTERY_HEALTH_DASHBOARDS = Object.freeze([
   Object.freeze({ url_path: "smartfamilyops-dashboard", view_path: "SmartFamilyOps-battery-health" }),
 ]);
 
+export function batteryHealthHeaderCard() {
+  return {
+    type: "custom:button-card",
+    smart_family_ops_brand_header: true,
+    show_icon: false,
+    show_name: false,
+    tap_action: { action: "none" },
+    custom_fields: {
+      logo: '<img src="/local/branding/smartfamilyops-logo-transparent.png" alt="SmartFamilyOps" style="display:block;width:50px;height:44px;object-fit:contain;object-position:center;">',
+      brand: 'SmartFamily<span style="color:#1565ff">Ops</span>',
+      context: "BATTERY HEALTH",
+    },
+    styles: {
+      card: [
+        { height: "64px" },
+        { "border-radius": "15px" },
+        { padding: "8px 12px" },
+        { background: "radial-gradient(circle at 90% 20%, rgba(7, 142, 154, 0.14), transparent 38%), radial-gradient(circle at 10% 20%, rgba(21, 101, 255, 0.13), transparent 38%), var(--card-background-color, #ffffff)" },
+        { border: "1px solid #d9e2ee" },
+        { "box-shadow": "0 8px 24px rgba(8, 26, 58, 0.12)" },
+        { "font-family": "Inter, var(--paper-font-common-base_-_font-family, system-ui, sans-serif)" },
+      ],
+      grid: [
+        { "grid-template-areas": '"logo brand" "logo context"' },
+        { "grid-template-columns": "56px 1fr" },
+        { "grid-template-rows": "1fr 1fr" },
+        { "column-gap": "10px" },
+      ],
+      custom_fields: {
+        logo: [
+          { "grid-area": "logo" },
+          { "align-self": "center" },
+          { "justify-self": "start" },
+        ],
+        brand: [
+          { "grid-area": "brand" },
+          { "align-self": "end" },
+          { "justify-self": "start" },
+          { color: "#081a3a" },
+          { "font-size": "20px" },
+          { "font-weight": 850 },
+          { "letter-spacing": "-0.04em" },
+          { "line-height": "1.05" },
+        ],
+        context: [
+          { "grid-area": "context" },
+          { "align-self": "start" },
+          { "justify-self": "start" },
+          { color: "#078e9a" },
+          { "font-size": "9px" },
+          { "font-weight": 850 },
+          { "letter-spacing": "0.11em" },
+          { "white-space": "nowrap" },
+        ],
+      },
+    },
+  };
+}
+
 export function validDashboardPath(urlPath) {
   return typeof urlPath === "string"
     && /^[a-z0-9]+(?:-[a-z0-9]+)+$/.test(urlPath);
@@ -28,7 +87,7 @@ export function batteryHealthConfig(content) {
       title: BATTERY_HEALTH_DASHBOARD.title,
       path: BATTERY_HEALTH_DASHBOARD.view_path,
       icon: BATTERY_HEALTH_DASHBOARD.icon,
-      cards: [{ type: "markdown", content }],
+      cards: [batteryHealthHeaderCard(), { type: "markdown", content }],
     }],
   };
 }
@@ -78,7 +137,8 @@ export function upgradeManagedBatteryHealthCard(config, content) {
   const upgraded = structuredClone(config);
   let changed = false;
   for (const view of (upgraded.views ?? [])) {
-    for (const card of (view.cards ?? [])) {
+    let managedCardIndex = -1;
+    for (const [index, card] of (view.cards ?? []).entries()) {
       if (card.type !== "markdown" || typeof card.content !== "string") continue;
       const isManagedCard = card.content.includes("SmartFamilyOps managed Battery Health card")
         || (card.content.includes("Battery & Power Observability")
@@ -89,6 +149,17 @@ export function upgradeManagedBatteryHealthCard(config, content) {
           && (card.content.includes("battery_health_devices") || card.content.includes("dashboard_devices")));
       if (!isManagedCard) continue;
       card.content = content;
+      changed = true;
+      managedCardIndex = index;
+    }
+    if (managedCardIndex >= 0) {
+      const headerIndex = view.cards.findIndex((card) => card?.smart_family_ops_brand_header === true);
+      const header = batteryHealthHeaderCard();
+      if (headerIndex >= 0) {
+        view.cards[headerIndex] = header;
+      } else {
+        view.cards.splice(managedCardIndex, 0, header);
+      }
       changed = true;
     }
   }
