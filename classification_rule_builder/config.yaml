@@ -1,7 +1,7 @@
 name: SmartFamilyOps Discovery Dashboard Builder
-version: "0.6.1"
+version: "0.6.2"
 slug: classification_rule_builder
-description: Build, preview, validate and publish deterministic Home Assistant device-classification rules.
+description: Build reusable Home Assistant discovery dashboards with deterministic classification rules.
 url: https://github.com/SmartFamilyOps/homeassistant-classification-rule-builder
 arch:
   - amd64
@@ -13,8 +13,8 @@ homeassistant_api: true
 protected: true
 ingress: true
 ingress_port: 8099
-panel_icon: mdi:format-list-checks
-panel_title: Classification Rules
+panel_icon: mdi:view-dashboard-edit
+panel_title: Dashboard Builder
 watchdog: http://[HOST]:8099/health
 map:
   - type: homeassistant_config

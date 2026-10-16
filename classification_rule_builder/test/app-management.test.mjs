@@ -34,6 +34,13 @@ test("the app exposes discovery, Apps navigation and interface-reload controls",
   assert.doesNotMatch(script, /app-update-check/);
 });
 
+test("Home Assistant presents the product as Dashboard Builder", async () => {
+  const config = await readFile(new URL("../config.yaml", import.meta.url), "utf8");
+  assert.match(config, /^name: SmartFamilyOps Discovery Dashboard Builder$/m);
+  assert.match(config, /^panel_title: Dashboard Builder$/m);
+  assert.match(config, /^panel_icon: mdi:view-dashboard-edit$/m);
+});
+
 test("summary groups device and entity totals with active and inactive breakdowns", async () => {
   const html = await readFile(new URL("../public/index.html", import.meta.url), "utf8");
   const script = await readFile(new URL("../public/app.js", import.meta.url), "utf8");

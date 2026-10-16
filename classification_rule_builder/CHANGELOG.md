@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.2
+
+- Rename the Home Assistant sidebar panel to **Dashboard Builder** and use `mdi:view-dashboard-edit`.
+- Broaden the app-store description to describe reusable discovery dashboards and their deterministic classification rules.
+
 ## 0.6.1
 
 - Migrate the earlier `/smartfamilyops-dashboard/SmartFamilyOps-battery-health` route to `/smartfamilyops-dashboards/battery-health` by copying the existing dashboard configuration before removing the legacy registration.
