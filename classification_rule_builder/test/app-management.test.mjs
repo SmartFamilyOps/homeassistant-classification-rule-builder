@@ -63,6 +63,15 @@ test("Home Assistant presents the product as Dashboard Builder", async () => {
   assert.match(config, /^panel_icon: mdi:view-dashboard-edit$/m);
 });
 
+test("new and duplicated rules use an ingress-compatible identifier generator", async () => {
+  const script = await readFile(new URL("../public/app.js", import.meta.url), "utf8");
+  assert.match(script, /function newRuleId\(\)/);
+  assert.match(script, /globalThis\.crypto/);
+  assert.match(script, /id: newRuleId\(\)/);
+  assert.match(script, /copy\.id = newRuleId\(\)/);
+  assert.doesNotMatch(script, /id: crypto\.randomUUID\(\)/);
+});
+
 test("summary groups device and entity totals with active and inactive breakdowns", async () => {
   const html = await readFile(new URL("../public/index.html", import.meta.url), "utf8");
   const script = await readFile(new URL("../public/app.js", import.meta.url), "utf8");

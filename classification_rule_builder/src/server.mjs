@@ -178,6 +178,10 @@ server.listen(port, "0.0.0.0", async () => {
   try {
     const result = await provisionDashboard();
     console.log(`[builder] Battery Health dashboard ${result.created ? "created with SmartFamilyOps defaults" : "already present; existing user settings preserved"}.`);
+    if (!await publicationRequired()) {
+      const upgraded = await upgradeDashboardCardIfManaged();
+      if (upgraded) console.log("[builder] Managed Battery Health card upgraded to the installed app version.");
+    }
   } catch (error) {
     console.error(`[builder] Battery Health dashboard provisioning skipped: ${error.message}`);
   }

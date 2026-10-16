@@ -52,10 +52,14 @@ export function upgradeManagedBatteryHealthCard(config, content) {
   for (const view of (upgraded.views ?? [])) {
     for (const card of (view.cards ?? [])) {
       if (card.type !== "markdown" || typeof card.content !== "string") continue;
-      const isManagedLegacyCard = card.content.includes("Battery & Power Observability")
-        && card.content.includes("smartfamilyops_device_classification.jinja")
-        && card.content.includes("for s in states.sensor");
-      if (!isManagedLegacyCard) continue;
+      const isManagedCard = card.content.includes("SmartFamilyOps managed Battery Health card")
+        || (card.content.includes("Battery & Power Observability")
+          && card.content.includes("smartfamilyops_device_classification.jinja")
+          && card.content.includes("for s in states.sensor"))
+        || (card.content.includes("Battery & Power Observability")
+          && card.content.includes("smartfamilyops_device_catalogue.jinja")
+          && card.content.includes("battery_health_devices"));
+      if (!isManagedCard) continue;
       card.content = content;
       changed = true;
     }

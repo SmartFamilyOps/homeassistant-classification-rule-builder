@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.2
+
+- Add a tools link for every Battery Health row that opens the matching native Home Assistant device page.
+- Generate rule identifiers in Home Assistant HTTP ingress even when `crypto.randomUUID()` is unavailable, fixing Add Rule and Duplicate Rule.
+- Upgrade a recognised managed Battery Health card on app startup when the complete classification publication is present, while preserving unrelated user cards.
+
 ## 0.7.1
 
 - Detect an incomplete publication set after upgrading from an earlier release.

@@ -59,6 +59,14 @@ test("the managed legacy card is upgraded without replacing user cards", () => {
   assert.equal(config.views[0].cards[0].content, legacy, "upgrade must not mutate the loaded configuration");
 });
 
+test("the published device-catalogue card is recognised on later app upgrades", () => {
+  const previousManagedCard = "## Battery & Power Observability\n{% from 'smartfamilyops_device_catalogue.jinja' import battery_health_devices %}\n{% set catalogued_devices = battery_health_devices(returns) %}";
+  const config = { views: [{ cards: [{ type: "markdown", content: previousManagedCard }] }] };
+  const result = upgradeManagedBatteryHealthCard(config, "new managed card");
+  assert.equal(result.changed, true);
+  assert.equal(result.config.views[0].cards[0].content, "new managed card");
+});
+
 test("unrecognised custom markdown is preserved", () => {
   const config = { views: [{ cards: [{ type: "markdown", content: "custom user card" }] }] };
   const result = upgradeManagedBatteryHealthCard(config, "new managed card");

@@ -21,6 +21,10 @@ Publication performs six guarded steps:
 
 If a write or reload fails, the complete preceding set is restored and Home Assistant reloads it again. Unrelated dashboard cards are not replaced.
 
+After later app upgrades, startup refreshes only the recognised SmartFamilyOps managed Battery Health card when the complete catalogue publication is present. This delivers presentation fixes without treating user-authored cards as app-owned content.
+
+The Battery Health **Tools** icon opens the matching native Home Assistant device page using its stable registry ID. Use this pattern for other builder-managed views that need to hand users from discovered data to existing Home Assistant configuration.
+
 The app reads Home Assistant's device, entity and area registries. Disabled registered entities are included as classification evidence without enabling them.
 
 The reusable classifier and local device catalogue are deliberately separate. The classifier is portable SmartFamilyOps logic. The device catalogue contains installation-specific IDs and evaluated dashboard membership. Users manage both through this app; neither generated Jinja file should be edited manually.

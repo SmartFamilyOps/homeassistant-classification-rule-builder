@@ -380,9 +380,22 @@ function renderPreview() {
   $("#preview-next").disabled = state.previewPage === totalPages;
 }
 
+function newRuleId() {
+  const cryptoApi = globalThis.crypto;
+  if (typeof cryptoApi?.randomUUID === "function") return cryptoApi.randomUUID();
+  if (typeof cryptoApi?.getRandomValues === "function") {
+    const bytes = cryptoApi.getRandomValues(new Uint8Array(16));
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    const hex = [...bytes].map((value) => value.toString(16).padStart(2, "0"));
+    return `${hex.slice(0, 4).join("")}-${hex.slice(4, 6).join("")}-${hex.slice(6, 8).join("")}-${hex.slice(8, 10).join("")}-${hex.slice(10).join("")}`;
+  }
+  return `rule-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
 function addRule() {
   const rule = {
-    id: crypto.randomUUID(), name: "New rule", enabled: true, match: "all",
+    id: newRuleId(), name: "New rule", enabled: true, match: "all",
     function: "Battery device", reason: "Deterministic classification evidence", asset_group: "", source_role: "standalone", battery_health: "automatic",
     conditions: [{ field: "manufacturer", operator: "equals", value: "" }],
   };
@@ -502,7 +515,7 @@ $("#move-down").addEventListener("click", () => moveSelected(1));
 $("#duplicate").addEventListener("click", () => {
   const source = selectedRule();
   const copy = clone(source);
-  copy.id = crypto.randomUUID();
+  copy.id = newRuleId();
   copy.name = `${source.name} copy`;
   const index = state.catalogue.rules.indexOf(source);
   state.catalogue.rules.splice(index + 1, 0, copy);

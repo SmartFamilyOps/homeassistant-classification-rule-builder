@@ -151,7 +151,7 @@ test("Battery Health dashboard consumes the published device catalogue", async (
 test("Battery Health table keeps icon-only status second, battery third and limits hover provenance to registry-backed cells", async () => {
   const card = await readFile(new URL("../../examples/battery-health-dashboard/card.jinja", import.meta.url), "utf8");
   const header = card.match(/namespace\(text='([^']+)'\)/)?.[1] ?? "";
-  assert.match(header, /^\| # \| Online \| Battery \| Device \| Location \| Manufacturer \| Function \| Splunk test \|/);
+  assert.match(header, /^\| # \| Online \| Battery \| Device \| Location \| Manufacturer \| Function \| Tools \| Splunk test \|/);
   assert.doesNotMatch(header, /Current mode/);
   assert.match(card, /ha_status_display = '✅' if p\.available_count > 0 else '❌'/);
   assert.doesNotMatch(card, /ha_status_display = '✅ Online'/);
@@ -164,4 +164,6 @@ test("Battery Health table keeps icon-only status second, battery third and limi
   assert.match(card, /Home Assistant device registry value for device:/);
   assert.doesNotMatch(card, /title="Calculated content:/);
   assert.match(card, /target="_blank" rel="noopener noreferrer"/);
+  assert.match(card, /\/config\/devices\/device\/.*i\.device_id/);
+  assert.match(card, /mdi:tools/);
 });

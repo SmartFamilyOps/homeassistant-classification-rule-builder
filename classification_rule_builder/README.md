@@ -25,7 +25,8 @@ The app configuration is organised into two in-app sections:
 - Opens Home Assistant's installed-apps page for update checks and app management without granting this app elevated Supervisor permissions.
 - Reloads the app interface on demand and serves frontend assets without browser caching so a newly installed interface appears immediately.
 - Creates the Battery Health dashboard on first start when the canonical SmartFamilyOps dashboard is absent, using the shipped title, icon, route and maintained card.
-- Preserves existing dashboard cards during app starts and upgrades. After a successful publication, it upgrades only the recognised legacy SmartFamilyOps managed Battery Health card; unrelated and user-authored cards remain untouched.
+- Preserves unrelated dashboard cards during app starts and upgrades. Once the complete managed catalogue exists, a new app version upgrades only the recognised SmartFamilyOps managed Battery Health card; user-authored cards remain untouched.
+- Links each Battery Health row to its native Home Assistant device page through the stable device registry ID.
 
 ## Managed files
 
@@ -112,6 +113,11 @@ metadata, the evaluated function and membership evidence. The dashboard reads
 current states for those IDs when it renders, so offline devices stay listed and
 live battery values do not require republishing.
 
+The Battery Health **Tools** column opens `/config/devices/device/{device_id}`.
+This hands configuration back to Home Assistant's native device page and remains
+valid when a device is renamed because it uses the registry ID rather than the
+display name.
+
 The starter catalogue keeps SIM/BSSID registry evidence as the strongest mobile
 phone rule. It also includes an Apple/iPhone fallback because Home Assistant
 dashboard templates cannot always inspect entities disabled in the registry,
@@ -141,10 +147,11 @@ sidebar title, `mdi:battery-sync` as the icon, and this route:
 ```
 
 Home Assistant requires a custom dashboard URL key to contain a hyphen, so
-`smartfamilyops` is not a valid first route segment. Existing dashboards are
-left unchanged during app restarts and upgrades. Use the Dashboard Builder's
-explicit defaults action when the shipped title and icon should replace local
-metadata; existing cards are retained.
+`smartfamilyops` is not a valid first route segment. Existing dashboard metadata
+and unrelated cards are left unchanged during app restarts and upgrades. The
+recognised SmartFamilyOps managed card is upgraded when the complete managed
+publication exists. Use the Dashboard Builder's explicit defaults action when
+the shipped title and icon should replace local metadata.
 
 The **Classification Rules** and **Dashboard Builder** tabs are inside **Open Web UI** (and the app's sidebar page). Home Assistant's outer **Info**, **Documentation**, **Configuration** and **Log** tabs are fixed app-management tabs. Use **Open Home Assistant Apps** to go directly to Home Assistant's installed-apps page, where its own refresh control checks for updates. **Refresh Home Assistant data** re-reads device, entity and area discovery without replacing unpublished rule edits. **Reload app interface** reconnects the ingress page and warns before discarding unpublished edits.
 
