@@ -41,9 +41,20 @@ test("device entity summary counts enabled entities and requires one available s
 test("the app exposes refresh, update-check and interface-reload controls", async () => {
   const html = await readFile(new URL("../public/index.html", import.meta.url), "utf8");
   const script = await readFile(new URL("../public/app.js", import.meta.url), "utf8");
+  const config = await readFile(new URL("../config.yaml", import.meta.url), "utf8");
   assert.match(html, /id="discover"[^>]*>Refresh Home Assistant data</);
   assert.match(html, /id="check-updates"[^>]*>Check for app updates</);
   assert.match(html, /id="reload-app"[^>]*>Reload app interface</);
   assert.match(script, /api\("app-update-check"/);
   assert.match(script, /window\.location\.reload\(\)/);
+  assert.match(config, /^hassio_api: true$/m);
+});
+
+test("summary groups device and entity totals with active and inactive breakdowns", async () => {
+  const html = await readFile(new URL("../public/index.html", import.meta.url), "utf8");
+  const script = await readFile(new URL("../public/app.js", import.meta.url), "utf8");
+  for (const id of ["device-count", "online-device-count", "offline-device-count", "entity-count", "enabled-count", "disabled-count"]) {
+    assert.match(html, new RegExp(`id="${id}"`));
+  }
+  assert.match(script, /enabledEntities \+ disabledEntities/);
 });

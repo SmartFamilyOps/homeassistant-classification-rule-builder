@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.2
+
+- Present device and entity totals with green active and red inactive breakdowns.
+- Grant the app authenticated Supervisor API access for app-store refresh checks.
+- Report readable Supervisor HTTP errors instead of exposing JSON parser failures.
+
 ## 0.4.1
 
 - Show enabled entity and offline device totals in the catalogue summary.

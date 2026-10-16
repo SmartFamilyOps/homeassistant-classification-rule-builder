@@ -43,12 +43,22 @@
     </section>
 
     <section class="summary" aria-label="Catalogue summary">
-      <article><strong id="rule-count">—</strong><span>rules</span></article>
-      <article><strong id="device-count">—</strong><span>devices discovered</span></article>
-      <article><strong id="offline-device-count">—</strong><span>devices offline</span></article>
-      <article><strong id="enabled-count">—</strong><span>enabled entities</span></article>
-      <article><strong id="disabled-count">—</strong><span>disabled entities included</span></article>
-      <article><strong id="changed-count">—</strong><span>preview changes</span></article>
+      <article class="summary-card simple"><div><strong id="rule-count">—</strong><span>rules</span></div></article>
+      <article class="summary-card">
+        <div class="summary-total"><strong id="device-count">—</strong><span>devices</span></div>
+        <div class="summary-breakdown">
+          <span class="metric-state good"><i aria-hidden="true">✓</i><b id="online-device-count">—</b> online</span>
+          <span class="metric-state bad"><i aria-hidden="true">×</i><b id="offline-device-count">—</b> offline</span>
+        </div>
+      </article>
+      <article class="summary-card">
+        <div class="summary-total"><strong id="entity-count">—</strong><span>entities</span></div>
+        <div class="summary-breakdown">
+          <span class="metric-state good"><i aria-hidden="true">✓</i><b id="enabled-count">—</b> enabled</span>
+          <span class="metric-state bad"><i aria-hidden="true">×</i><b id="disabled-count">—</b> disabled</span>
+        </div>
+      </article>
+      <article class="summary-card simple"><div><strong id="changed-count">—</strong><span>preview changes</span></div></article>
     </section>
 
     <section class="workspace">

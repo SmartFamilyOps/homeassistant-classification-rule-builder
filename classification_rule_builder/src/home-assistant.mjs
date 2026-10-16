@@ -30,7 +30,18 @@ async function supervisorRequest(path, options = {}) {
     signal: AbortSignal.timeout(60_000),
   });
   const text = await response.text();
-  const payload = text ? JSON.parse(text) : null;
+  let payload = null;
+  if (text) {
+    try {
+      payload = JSON.parse(text);
+    } catch {
+      const detail = text.trim().slice(0, 160);
+      if (!response.ok) {
+        throw new Error(`Home Assistant Supervisor returned HTTP ${response.status} for ${path}${detail ? `: ${detail}` : "."}`);
+      }
+      throw new Error(`Home Assistant Supervisor returned an invalid response for ${path}.`);
+    }
+  }
   if (!response.ok || payload?.result === "error") {
     const message = payload?.message || `Home Assistant Supervisor returned HTTP ${response.status} for ${path}.`;
     throw new Error(message);

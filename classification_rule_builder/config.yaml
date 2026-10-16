@@ -1,5 +1,5 @@
 name: SmartFamilyOps Classification Rule Builder
-version: "0.4.1"
+version: "0.4.2"
 slug: classification_rule_builder
 description: Build, preview, validate and publish deterministic Home Assistant device-classification rules.
 url: https://github.com/SmartFamilyOps/homeassistant-classification-rule-builder
@@ -10,6 +10,7 @@ startup: application
 boot: auto
 init: false
 homeassistant_api: true
+hassio_api: true
 protected: true
 ingress: true
 ingress_port: 8099
