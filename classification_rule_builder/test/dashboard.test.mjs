@@ -99,6 +99,8 @@ test("Dashboard Builder exposes explicit provisioning and the shipped defaults",
   assert.match(script, /api\("dashboards\/save-as"/);
   assert.match(html, /id="create-dashboard"/);
   assert.match(script, /api\("dashboards\/create"/);
+  assert.match(html, /id="dashboard-columns-options"/);
+  assert.match(script, /columns:/);
 });
 
 test("fresh dashboards receive an independent list identity and policy", () => {
@@ -110,6 +112,7 @@ test("fresh dashboards receive an independent list identity and policy", () => {
   assert.equal(dashboard.status, "draft");
   assert.deepEqual(dashboard.population_policy, policy);
   assert.notEqual(dashboard.population_policy, policy);
+  assert.deepEqual(dashboard.columns, ["online", "device", "location", "manufacturer", "function"]);
 });
 
 test("Save as new dashboard creates a distinct governed draft identity", () => {

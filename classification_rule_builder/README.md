@@ -147,6 +147,7 @@ The Battery Health **Edit Device** column opens `/config/devices/device/{device_
 
 The **Dashboard Builder** tab can open any compatible SmartFamilyOps dashboard and save it as a new governed draft. A draft receives a new UUID, a collision-safe `smartfamilyops-dashboards-*` route, a copied Lovelace configuration, a copied but independently editable population policy, an app-owned manifest, administrator-only access and no sidebar entry by default. Existing compatible dashboards can be renamed and have their description, icon, sidebar visibility and administrator access maintained from the same editor.
 **Create new dashboard** creates an independent managed list from a fresh definition. The first supported presentation is a straightforward table of the selected catalogue's devices; richer card layouts can be added later without changing the rule and population contracts.
+Managed list dashboards expose selectable columns in the definition editor. The row number is structural and always remains first; the selected columns follow in the order defined by the app.
 This hands configuration back to Home Assistant's native device page and remains
 valid when a device is renamed because it uses the registry ID rather than the
 display name.

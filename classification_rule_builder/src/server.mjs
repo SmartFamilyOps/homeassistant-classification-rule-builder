@@ -4,7 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createDashboard, deleteDashboard, discoverDevices, listDashboards, loadDashboardConfig, reloadCustomTemplates, saveDashboardConfig, updateDashboard, validateTemplate } from "./home-assistant.mjs";
 import { BATTERY_HEALTH_DASHBOARD, batteryHealthConfig, discoveryListConfig, findBatteryHealthDashboard, findLegacyBatteryHealthDashboard, migrateBatteryHealthConfig, retargetManagedDashboardCard, upgradeManagedBatteryHealthCard, validDashboardPath } from "./dashboard.mjs";
-import { batteryHealthDefinition, cloneDashboardConfig, isCompatibleDashboardConfig, newDashboardDefinition, newFreshDashboardDefinition, readDashboardDefinitions, restoreDashboardDefinitionSet, saveDashboardDefinition, saveDashboardDefinitionSet } from "./dashboard-definitions.mjs";
+import { DEFAULT_LIST_COLUMNS, LIST_COLUMN_DEFINITIONS, batteryHealthDefinition, cloneDashboardConfig, isCompatibleDashboardConfig, newDashboardDefinition, newFreshDashboardDefinition, readDashboardDefinitions, restoreDashboardDefinitionSet, saveDashboardDefinition, saveDashboardDefinitionSet } from "./dashboard-definitions.mjs";
 import { buildDashboardDeviceCatalogues, generateDashboardDeviceCataloguesJinja } from "./device-catalogue.mjs";
 import { automaticCandidatePolicy, catalogueRevision, classifyDevice, FIELD_DEFINITIONS, generateJinja, OPERATORS, validateAutomaticCandidatePolicy, validateCatalogue } from "./rules.mjs";
 import { pathsForStatus, pruneBackups, publicationRequired, readCatalogue, restoreFiles, saveFiles } from "./storage.mjs";
@@ -132,6 +132,32 @@ function dashboardPolicyErrors(definitions) {
   );
 }
 
+function normaliseColumns(value, fallback = DEFAULT_LIST_COLUMNS) {
+  const allowed = new Set(LIST_COLUMN_DEFINITIONS.map((column) => column.key));
+  const columns = Array.isArray(value) ? [...new Set(value.filter((column) => allowed.has(column)))] : [];
+  return columns.length ? columns : [...fallback];
+}
+
+async function updateManagedListCard(config, definition) {
+  const updated = structuredClone(config);
+  const source = await readFile(discoveryListCardPath, "utf8");
+  const content = source.replaceAll("__DASHBOARD_ID__", definition.id)
+    .replace("__DASHBOARD_COLUMNS__", JSON.stringify(definition.columns ?? DEFAULT_LIST_COLUMNS))
+    .replaceAll("__DASHBOARD_TITLE__", definition.title);
+  let changed = false;
+  const visit = (cards) => {
+    for (const card of cards ?? []) {
+      if (card?.type === "markdown" && typeof card.content === "string" && card.content.includes("SmartFamilyOps managed discovery list")) {
+        changed ||= card.content !== content;
+        card.content = content;
+      }
+      if (Array.isArray(card?.cards)) visit(card.cards);
+    }
+  };
+  for (const view of updated.views ?? []) visit(view.cards);
+  return { config: updated, changed };
+}
+
 async function saveAsDashboard(payload) {
   const definitions = await compatibleDashboardDefinitions();
   const source = definitions.find((definition) => definition.id === payload.source_id);
@@ -141,7 +167,7 @@ async function saveAsDashboard(payload) {
   if (source.id !== "battery-health" && !isCompatibleDashboardConfig(sourceConfig, source.id)) {
     throw Object.assign(new Error("The source dashboard no longer carries the SmartFamilyOps compatibility marker."), { status: 409 });
   }
-  const definition = newDashboardDefinition(source, payload, dashboards.map((dashboard) => dashboard.url_path));
+  const definition = newDashboardDefinition({ ...source, columns: normaliseColumns(payload.columns, source.columns ?? DEFAULT_LIST_COLUMNS) }, payload, dashboards.map((dashboard) => dashboard.url_path));
   const cloned = cloneDashboardConfig(sourceConfig, definition);
   const config = retargetManagedDashboardCard(cloned, definition.id).config;
   const created = await createDashboard({
@@ -166,6 +192,7 @@ async function createFreshDashboard(payload) {
   const definition = newFreshDashboardDefinition(payload, defaultPolicy, dashboards.map((dashboard) => dashboard.url_path));
   const card = (await readFile(discoveryListCardPath, "utf8"))
     .replaceAll("__DASHBOARD_ID__", definition.id)
+    .replace("__DASHBOARD_COLUMNS__", JSON.stringify(definition.columns))
     .replaceAll("__DASHBOARD_TITLE__", definition.title);
   const config = discoveryListConfig(card, definition);
   const created = await createDashboard({
@@ -195,6 +222,7 @@ async function saveDashboardChanges(payload) {
     icon: String(payload.icon ?? current.icon).trim(),
     show_in_sidebar: Boolean(payload.show_in_sidebar),
     require_admin: Boolean(payload.require_admin),
+    columns: normaliseColumns(payload.columns, current.columns ?? DEFAULT_LIST_COLUMNS),
     updated_at: new Date().toISOString(),
   };
   if (!updated.title) throw Object.assign(new Error("Dashboard name is required."), { status: 422 });
@@ -205,6 +233,8 @@ async function saveDashboardChanges(payload) {
   view.title = updated.title;
   view.icon = updated.icon;
   config.smartfamilyops_dashboard = { schema_version: 1, owner: "SmartFamilyOps Discovery Dashboard Builder", definition_id: updated.id };
+  const listCard = await updateManagedListCard(config, updated);
+  if (listCard.changed) Object.assign(config, listCard.config);
   await updateDashboard(dashboard.id, { title: updated.title, icon: updated.icon, show_in_sidebar: updated.show_in_sidebar, require_admin: updated.require_admin });
   try {
     await saveDashboardConfig(updated.url_path, config);

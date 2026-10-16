@@ -238,6 +238,26 @@ function renderDashboardEditor() {
   $("#dashboard-description").value = dashboard.description;
   $("#dashboard-sidebar").checked = dashboard.show_in_sidebar;
   $("#dashboard-admin").checked = dashboard.require_admin;
+  const columns = dashboard.columns ?? ["online", "device", "location", "manufacturer", "function"];
+  const labels = { online: "Online", device: "Device", location: "Location", manufacturer: "Manufacturer", function: "Function", asset_group: "Logical asset", entities: "Entities" };
+  const options = $("#dashboard-columns-options");
+  options.replaceChildren();
+  for (const [key, label] of Object.entries(labels)) {
+    const item = document.createElement("label");
+    item.className = "column-option";
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.value = key;
+    checkbox.checked = columns.includes(key);
+    checkbox.addEventListener("change", () => {
+      const selected = [...options.querySelectorAll("input:checked")].map((input) => input.value);
+      if (!selected.length) { checkbox.checked = true; return; }
+      dashboard.columns = selected;
+      markDirty();
+    });
+    item.append(checkbox, document.createTextNode(label));
+    options.append(item);
+  }
   $("#dashboard-message").textContent = "Compatible SmartFamilyOps schema version 1.";
 }
 
@@ -257,6 +277,7 @@ function dashboardPayload() {
     description: $("#dashboard-description").value,
     show_in_sidebar: $("#dashboard-sidebar").checked,
     require_admin: $("#dashboard-admin").checked,
+    columns: [...document.querySelectorAll("#dashboard-columns-options input:checked")].map((input) => input.value),
   };
 }
 
@@ -307,6 +328,7 @@ async function confirmCreateDashboard(event) {
       description: $("#create-description").value,
       show_in_sidebar: $("#create-sidebar").checked,
       require_admin: true,
+      columns: clone(state.dashboard.columns ?? ["online", "device", "location", "manufacturer", "function"]),
     }) });
     $("#create-dashboard-dialog").close();
     await loadCompatibleDashboards();

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.12.0
+
+- Add managed list-column selection for compatible dashboards.
+- Keep the row number as the first column in every generated list and allow users to choose the columns that follow.
+- Regenerate managed list cards when their column selection or metadata changes.
+
 ## 0.11.0
 
 - Add **Create new dashboard** for independent SmartFamilyOps list dashboards with their own route, metadata, managed view and population policy.

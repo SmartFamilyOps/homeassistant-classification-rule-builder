@@ -2,7 +2,13 @@
 {% from 'smartfamilyops_device_catalogue.jinja' import dashboard_devices -%}
 {% set dashboard_devices_fn = dashboard_devices | as_function -%}
 {% set catalogued_devices = dashboard_devices_fn('__DASHBOARD_ID__') -%}
-{% set rows = namespace(text='| # | Online | Device | Location | Manufacturer | Function |\n|--:|:--:|:--|:--|:--|:--|') -%}
+{% set columns = __DASHBOARD_COLUMNS__ -%}
+{% set labels = {'online': 'Online', 'device': 'Device', 'location': 'Location', 'manufacturer': 'Manufacturer', 'function': 'Function', 'asset_group': 'Logical asset', 'entities': 'Entities'} -%}
+{% set header = namespace(text='| #') -%}
+{% for column in columns -%}{% set header.text = header.text ~ ' | ' ~ labels[column] %}{% endfor -%}
+{% set header.text = header.text ~ ' |\n|--:' -%}
+{% for column in columns -%}{% set header.text = header.text ~ '|:--' %}{% endfor -%}
+{% set rows = namespace(text=header.text) -%}
 {% for d in catalogued_devices -%}
   {% set available = namespace(value=false) -%}
   {% for entity_id in d.relevant_entity_ids -%}
@@ -13,7 +19,12 @@
   {% set area = area_name(d.device_id) | default(d.area, true) -%}
   {% set manufacturer = device_attr(d.device_id, 'manufacturer') | default(d.manufacturer, true) -%}
   {% set status = '✅' if available.value else '❌' -%}
-  {% set rows.text = rows.text ~ '\n| ' ~ loop.index ~ ' | ' ~ status ~ ' | **' ~ name ~ '** | ' ~ area ~ ' | ' ~ manufacturer ~ ' | ' ~ d.function ~ ' |' -%}
+  {% set cells = namespace(text='\n| ' ~ loop.index) -%}
+  {% for column in columns -%}
+    {% set value = status if column == 'online' else '**' ~ name ~ '**' if column == 'device' else area if column == 'location' else manufacturer if column == 'manufacturer' else d.function if column == 'function' else d.asset_group if column == 'asset_group' else d.entity_ids | length if column == 'entities' else '' -%}
+    {% set cells.text = cells.text ~ ' | ' ~ value -%}
+  {% endfor -%}
+  {% set rows.text = rows.text ~ cells.text ~ ' |' -%}
 {% endfor -%}
 # __DASHBOARD_TITLE__
 

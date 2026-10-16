@@ -4,12 +4,28 @@ import { randomUUID } from "node:crypto";
 
 export const DASHBOARD_SCHEMA_VERSION = 1;
 export const DASHBOARD_OWNER = "SmartFamilyOps Discovery Dashboard Builder";
+export const LIST_COLUMN_DEFINITIONS = Object.freeze([
+  Object.freeze({ key: "online", label: "Online" }),
+  Object.freeze({ key: "device", label: "Device" }),
+  Object.freeze({ key: "location", label: "Location" }),
+  Object.freeze({ key: "manufacturer", label: "Manufacturer" }),
+  Object.freeze({ key: "function", label: "Function" }),
+  Object.freeze({ key: "asset_group", label: "Logical asset" }),
+  Object.freeze({ key: "entities", label: "Entities" }),
+]);
+export const DEFAULT_LIST_COLUMNS = Object.freeze(["online", "device", "location", "manufacturer", "function"]);
 const root = process.env.CONFIG_ROOT ?? "/config";
 const definitionsDirectory = path.join(root, "smartfamilyops", "dashboard-builder", "dashboards");
 
 export function dashboardSlug(value) {
   return String(value ?? "dashboard").toLocaleLowerCase("en-GB").normalize("NFKD")
     .replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "dashboard";
+}
+
+function listColumns(value, fallback = DEFAULT_LIST_COLUMNS) {
+  const allowed = new Set(LIST_COLUMN_DEFINITIONS.map((column) => column.key));
+  const columns = Array.isArray(value) ? value.filter((column) => allowed.has(column)) : fallback;
+  return [...new Set(columns)].length ? [...new Set(columns)] : [...fallback];
 }
 
 export function newDashboardDefinition(source, input, existingPaths = []) {
@@ -25,6 +41,7 @@ export function newDashboardDefinition(source, input, existingPaths = []) {
     schema_version: DASHBOARD_SCHEMA_VERSION, owner: DASHBOARD_OWNER, id, source_id: source.id,
     title, description: String(input.description ?? `Created from ${source.title}`).trim(),
     icon: String(input.icon ?? source.icon ?? "mdi:view-dashboard-outline").trim(),
+    columns: listColumns(input.columns, source.columns ?? DEFAULT_LIST_COLUMNS),
     population_policy: structuredClone(input.population_policy ?? source.population_policy),
     url_path: urlPath, view_path: slug, show_in_sidebar: Boolean(input.show_in_sidebar),
     require_admin: input.require_admin !== false, status: "draft",
@@ -45,6 +62,7 @@ export function newFreshDashboardDefinition(input, populationPolicy, existingPat
     schema_version: DASHBOARD_SCHEMA_VERSION, owner: DASHBOARD_OWNER, id, source_id: null,
     title, description: String(input.description ?? "SmartFamilyOps discovery list.").trim(),
     icon: String(input.icon ?? "mdi:view-dashboard-outline").trim(),
+    columns: listColumns(input.columns),
     population_policy: structuredClone(populationPolicy),
     url_path: urlPath, view_path: slug, show_in_sidebar: Boolean(input.show_in_sidebar),
     require_admin: input.require_admin !== false, status: "draft",
@@ -128,6 +146,7 @@ export function batteryHealthDefinition(dashboard, populationPolicy) {
     schema_version: DASHBOARD_SCHEMA_VERSION, owner: DASHBOARD_OWNER, id: "battery-health", source_id: null,
     title: dashboard.title, description: "SmartFamilyOps battery and power discovery dashboard.",
     icon: dashboard.icon || "mdi:battery-sync", url_path: dashboard.url_path, view_path: "battery-health",
+    columns: [...DEFAULT_LIST_COLUMNS],
     population_policy: structuredClone(populationPolicy),
     show_in_sidebar: dashboard.show_in_sidebar, require_admin: dashboard.require_admin, status: "published",
     created_at: null, updated_at: new Date().toISOString(),
