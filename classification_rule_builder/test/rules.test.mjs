@@ -191,6 +191,9 @@ test("Battery Health table keeps icon-only status second, battery third and limi
   assert.match(card, /battery_display = .* if level_valid else ''/);
   assert.match(card, /title="Source entity: ' ~ i\.entity_id/);
   assert.match(card, /Home Assistant area registry value for device:/);
+  assert.match(card, /device_name\(d\.device_id\)/);
+  assert.match(card, /area_name\(d\.device_id\)/);
+  assert.match(card, /device_attr\(d\.device_id, 'manufacturer'\)/);
   assert.match(card, /Home Assistant device registry value for device:/);
   assert.doesNotMatch(card, /title="Calculated content:/);
   assert.match(card, /target="_blank" rel="noopener noreferrer"/);

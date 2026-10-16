@@ -10,6 +10,9 @@ _Protected device telemetry • power-source discovery • Splunk test catalogue
 {# PRESENTATION: membership and classification were evaluated when the catalogue was published. #}
 {% set batteries = namespace(items=[]) -%}
 {% for d in catalogued_devices -%}
+  {% set live_name = device_name(d.device_id) | default(d.name, true) -%}
+  {% set live_area = area_name(d.device_id) | default(d.area, true) -%}
+  {% set live_manufacturer = device_attr(d.device_id, 'manufacturer') | default(d.manufacturer, true) -%}
   {% set battery_state = states[d.battery_entity_id] if d.battery_entity_id else none -%}
   {% set raw_level = (battery_state.state | lower) if battery_state is not none else '' -%}
   {% set numeric_level = (battery_state.state | float(999)) if battery_state is not none else 999 -%}
@@ -70,7 +73,7 @@ _Protected device telemetry • power-source discovery • Splunk test catalogue
   {% set ha_status = 'Online' if p.available_count > 0 else 'Offline' -%}
   {% set ha_status_display = '✅' if p.available_count > 0 else '❌' -%}
   {% set availability_evidence = p.available_count ~ ' available / ' ~ p.unavailable_count ~ ' unavailable' -%}
-  {% set batteries.items = batteries.items + [{'device_id': d.device_id, 'entity_id': d.battery_entity_id, 'name': d.name, 'area': d.area, 'manufacturer': d.manufacturer, 'function': d.function, 'classification': d.classification, 'level': battery_display, 'sort_level': sort_level, 'battery_icon': battery_icon, 'ha_status': ha_status, 'ha_status_display': ha_status_display, 'availability_evidence': availability_evidence, 'charging': p.charging, 'wired': p.wired, 'mode': p.mode, 'battery_temperature': p.battery_temperature, 'evidence': p.evidence | join('; ')}] -%}
+  {% set batteries.items = batteries.items + [{'device_id': d.device_id, 'entity_id': d.battery_entity_id, 'name': live_name, 'area': live_area, 'manufacturer': live_manufacturer, 'function': d.function, 'classification': d.classification, 'level': battery_display, 'sort_level': sort_level, 'battery_icon': battery_icon, 'ha_status': ha_status, 'ha_status_display': ha_status_display, 'availability_evidence': availability_evidence, 'charging': p.charging, 'wired': p.wired, 'mode': p.mode, 'battery_temperature': p.battery_temperature, 'evidence': p.evidence | join('; ')}] -%}
 {% endfor -%}
 
 {% set table = namespace(text='| # | Online | Battery | Device | Location | Manufacturer | Function | Edit Device | Splunk test |\n|--:|:--:|:--|:--|:--|:--|:--|:--:|:--|') -%}

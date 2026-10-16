@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.10.1
+
+- Resolve the displayed device name, area and manufacturer from Home Assistant's live registries on each dashboard render.
+- Retain the published catalogue values as fallbacks if a registry lookup is unavailable.
+- Allow device and area renames to appear without republishing the discovery catalogue; reload the view if no state change has triggered a render.
+
 ## 0.10.0
 
 - Give every compatible dashboard its own automatic-candidate population policy and published device list.

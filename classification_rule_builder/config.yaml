@@ -1,5 +1,5 @@
 name: SmartFamilyOps Discovery Dashboard Builder
-version: "0.10.0"
+version: "0.10.1"
 slug: classification_rule_builder
 description: Build reusable Home Assistant discovery dashboards with deterministic classification rules.
 url: https://github.com/SmartFamilyOps/homeassistant-classification-rule-builder
