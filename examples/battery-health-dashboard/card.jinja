@@ -82,7 +82,3 @@
 {% set table.text = table.text ~ '\n| ' ~ loop.index ~ ' | <strong>' ~ i.ha_status_display ~ '</strong> | ' ~ battery_cell ~ ' | <abbr title="Home Assistant device registry value for device: ' ~ i.device_id ~ '"><strong>' ~ i.name ~ '</strong></abbr> | <abbr title="Home Assistant area registry value for device: ' ~ i.device_id ~ '">' ~ i.area ~ '</abbr> | <abbr title="Home Assistant device registry value for device: ' ~ i.device_id ~ '">' ~ i.manufacturer ~ '</abbr> | ' ~ i.function ~ ' | ' ~ tools_cell ~ ' | <a href="' ~ configure_url ~ '" target="_blank" rel="noopener noreferrer">Configure</a> |' -%}
 {% endfor -%}
 {{- '\n\n' ~ table.text ~ '\n\n' -}}
-
-**Home Assistant status:** ✅ Online means at least one relevant stateful entity has a usable state. ❌ Offline means none of the relevant entities has a usable state. The published device catalogue keeps offline devices visible. Refresh discovery and publish in Dashboard Builder when registered devices or entities change.
-
-**Interpretation:** Dashboard membership and function are evaluated by the published SmartFamilyOps classification catalogue. Current battery, power and availability values are read from Home Assistant at display time.

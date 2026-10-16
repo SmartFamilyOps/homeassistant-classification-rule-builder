@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.10.4
+
+- Remove the explanatory Home Assistant status and catalogue interpretation paragraphs beneath the Battery Health table.
+
 ## 0.10.3
 
 - Keep the branded header and full-width Battery Health table inside one managed vertical stack so Home Assistant panel views render both together.

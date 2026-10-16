@@ -200,4 +200,5 @@ test("Battery Health table keeps icon-only status second, battery third and limi
   assert.match(card, /\/config\/devices\/device\/.*i\.device_id/);
   assert.match(card, /mdi:tools/);
   assert.match(card, /tools_cell = '<a href="' ~ device_url ~ '" target="_blank" rel="noopener noreferrer"/);
+  assert.doesNotMatch(card, /\*\*Home Assistant status:\*\*|\*\*Interpretation:\*\*/);
 });
