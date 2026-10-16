@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.1
+
+- Run the test files directly so the release workflow works on the app's supported Node.js 22 runtime.
+
 ## 0.5.0
 
 - Provision the Battery Health dashboard on first app start with the shipped SmartFamilyOps title, `mdi:battery-sync` icon and canonical route.
