@@ -1,14 +1,14 @@
-import { classifyDevice } from "./rules.mjs";
+import { automaticCandidateMatches, classifyDevice } from "./rules.mjs";
 
 const text = (value) => String(value ?? "").trim();
 
-export function batteryHealthIncluded(classification, device) {
+export function batteryHealthIncluded(catalogue, classification, device) {
   if (device.battery_monitor) return true;
   if (device.battery_ignore) return false;
   if (classification.source_role === "duplicate") return false;
   if (classification.battery_health === "include") return true;
   if (classification.battery_health === "exclude") return false;
-  return Boolean(device.battery);
+  return automaticCandidateMatches(catalogue, device);
 }
 
 export function buildDeviceCatalogue(catalogue, devices) {
@@ -17,7 +17,7 @@ export function buildDeviceCatalogue(catalogue, devices) {
     generated_at: new Date().toISOString(),
     devices: devices.flatMap((device) => {
       const classification = classifyDevice(catalogue, device);
-      if (!batteryHealthIncluded(classification, device)) return [];
+      if (!batteryHealthIncluded(catalogue, classification, device)) return [];
       return [{
         device_id: text(device.id),
         name: text(device.name) || "Unnamed device",

@@ -59,14 +59,23 @@
           <p class="eyebrow">Dashboard population</p>
           <h2 id="battery-health-scope-title">Battery Health discovery scope</h2>
         </div>
-        <span class="policy-badge">Managed default</span>
+        <span class="policy-badge">Editable policy</span>
       </div>
       <p class="membership-intro">This policy decides which discovered devices enter Battery Health. The ordered rules below classify devices and can explicitly include or exclude them.</p>
       <div class="membership-flow">
-        <article>
-          <strong>Automatic candidate</strong>
-          <code>entity device_class = battery</code>
-          <span>or the registered entity ID contains <code>battery</code></span>
+        <article class="candidate-policy-editor">
+          <div class="candidate-policy-heading">
+            <strong>Automatic candidates</strong>
+            <label>Match
+              <select id="candidate-match" aria-label="Automatic candidate condition matching">
+                <option value="any">any condition</option>
+                <option value="all">all conditions</option>
+              </select>
+            </label>
+          </div>
+          <span>Devices matching this editable evidence policy become candidates before rule and label overrides.</span>
+          <div id="candidate-conditions" class="candidate-conditions"></div>
+          <button id="add-candidate-condition" type="button" class="secondary small">＋ Add candidate condition</button>
         </article>
         <span class="flow-arrow" aria-hidden="true">→</span>
         <article>

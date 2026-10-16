@@ -109,9 +109,18 @@ function entityLabels(entity) {
 }
 
 export function deviceEntityEvidence(deviceEntities, statesById) {
+  const entityDeviceClasses = [...new Set(deviceEntities.flatMap((entity) => {
+    const runtimeClass = statesById.get(entity.entity_id)?.attributes?.device_class;
+    return [entity.device_class, entity.original_device_class, runtimeClass]
+      .filter(Boolean)
+      .map((value) => String(value).toLocaleLowerCase("en-GB"));
+  }))];
   const batteryCandidates = deviceEntities.filter((entity) => {
     const state = statesById.get(entity.entity_id);
-    return state?.attributes?.device_class === "battery" || entity.entity_id.includes("battery");
+    return entity.device_class === "battery"
+      || entity.original_device_class === "battery"
+      || state?.attributes?.device_class === "battery"
+      || entity.entity_id.includes("battery");
   });
   batteryCandidates.sort((left, right) => Number(Boolean(left.disabled_by)) - Number(Boolean(right.disabled_by)));
   const batteryEntity = batteryCandidates[0];
@@ -123,6 +132,7 @@ export function deviceEntityEvidence(deviceEntities, statesById) {
     battery_entity_id: batteryEntity?.entity_id ?? "",
     battery_ignore: batteryCandidates.some((entity) => entityLabels(entity).includes("battery_ignore")),
     battery_monitor: batteryCandidates.some((entity) => entityLabels(entity).includes("battery_monitor")),
+    entity_device_classes: entityDeviceClasses,
     relevant_entity_ids: relevantEntityIds,
   };
 }

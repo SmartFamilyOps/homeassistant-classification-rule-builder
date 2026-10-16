@@ -6,6 +6,7 @@ export const FIELD_DEFINITIONS = Object.freeze({
   area: { label: "Location / area", type: "text" },
   entity_name: { label: "Entity name", type: "collection" },
   entity_id: { label: "Entity ID", type: "collection" },
+  entity_device_class: { label: "Entity device class", type: "collection" },
   camera_evidence: { label: "Camera-specific evidence", type: "boolean" },
 });
 
@@ -17,6 +18,19 @@ export const OPERATORS = Object.freeze({
 
 const text = (value) => String(value ?? "").trim();
 const lower = (value) => text(value).toLocaleLowerCase("en-GB");
+
+export const DEFAULT_AUTOMATIC_CANDIDATE_POLICY = Object.freeze({
+  match: "any",
+  conditions: Object.freeze([
+    Object.freeze({ field: "entity_device_class", operator: "equals", value: "battery" }),
+    Object.freeze({ field: "entity_id", operator: "contains", value: "battery" }),
+  ]),
+});
+
+export function automaticCandidatePolicy(catalogue) {
+  const configured = catalogue?.dashboard_population?.automatic_candidates;
+  return configured ?? DEFAULT_AUTOMATIC_CANDIDATE_POLICY;
+}
 
 function seededRule(name, functionName, reason, conditions, match = "all", asset = {}) {
   return {
@@ -38,6 +52,12 @@ export function seedCatalogue() {
       function: "Battery device",
       reason: "Fallback: no recognised function evidence",
       battery_health: "automatic",
+    },
+    dashboard_population: {
+      automatic_candidates: {
+        match: DEFAULT_AUTOMATIC_CANDIDATE_POLICY.match,
+        conditions: DEFAULT_AUTOMATIC_CANDIDATE_POLICY.conditions.map((condition) => ({ ...condition })),
+      },
     },
     rules: [
       seededRule(
@@ -224,6 +244,18 @@ export function validateCatalogue(candidate) {
   if (!text(candidate.fallback?.function)) errors.push("fallback.function is required.");
   if (!text(candidate.fallback?.reason)) errors.push("fallback.reason is required.");
 
+  const policy = automaticCandidatePolicy(candidate);
+  if (!["all", "any"].includes(policy.match)) {
+    errors.push("dashboard_population.automatic_candidates.match must be all or any.");
+  }
+  if (!Array.isArray(policy.conditions) || policy.conditions.length === 0) {
+    errors.push("dashboard_population.automatic_candidates.conditions must contain at least one condition.");
+  } else {
+    policy.conditions.forEach((condition, index) =>
+      validateCondition(condition, `dashboard_population.automatic_candidates.conditions[${index}]`, errors),
+    );
+  }
+
   const ids = new Set();
   const names = new Set();
   for (const [index, rule] of (candidate.rules ?? []).entries()) {
@@ -283,8 +315,18 @@ export function conditionMatches(condition, device) {
   }[condition.field];
   if (source !== undefined) return compareScalar(source, condition.operator, condition.value);
 
-  const collection = condition.field === "entity_name" ? device.entity_names : device.entity_ids;
+  const collection = {
+    entity_name: device.entity_names,
+    entity_id: device.entity_ids,
+    entity_device_class: device.entity_device_classes,
+  }[condition.field];
   return (collection ?? []).some((value) => compareScalar(value, condition.operator, condition.value));
+}
+
+export function automaticCandidateMatches(catalogue, device) {
+  const policy = automaticCandidatePolicy(catalogue);
+  const matches = policy.conditions.map((condition) => conditionMatches(condition, device));
+  return policy.match === "all" ? matches.every(Boolean) : matches.some(Boolean);
 }
 
 export function classifyDevice(catalogue, device) {
@@ -337,7 +379,12 @@ function jinjaCondition(condition) {
   };
   if (scalars[condition.field]) return jinjaScalar(scalars[condition.field], condition.operator, condition.value);
 
-  const collection = condition.field === "entity_name" ? "device.entity_names" : "device.entity_ids";
+  const collections = {
+    entity_name: "device.entity_names",
+    entity_id: "device.entity_ids",
+    entity_device_class: "device.entity_device_classes",
+  };
+  const collection = collections[condition.field];
   const expected = jinjaString(lower(condition.value));
   if (condition.operator === "equals") {
     if (condition.field === "entity_name") {

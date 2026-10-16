@@ -10,6 +10,7 @@ const device = (overrides = {}) => ({
   area: "Unassigned",
   entity_names: [],
   entity_ids: [],
+  entity_device_classes: [],
   relevant_entity_ids: [],
   camera_evidence: false,
   battery: false,
@@ -20,9 +21,25 @@ const device = (overrides = {}) => ({
 });
 
 test("automatic membership requires battery evidence", () => {
+  const catalogue = seedCatalogue();
   const classification = { source_role: "standalone", battery_health: "automatic" };
-  assert.equal(batteryHealthIncluded(classification, device()), false);
-  assert.equal(batteryHealthIncluded(classification, device({ battery: true })), true);
+  assert.equal(batteryHealthIncluded(catalogue, classification, device()), false);
+  assert.equal(batteryHealthIncluded(catalogue, classification, device({ entity_device_classes: ["battery"] })), true);
+  assert.equal(batteryHealthIncluded(catalogue, classification, device({ entity_ids: ["sensor.example_battery"] })), true);
+});
+
+test("automatic membership uses the editable candidate policy", () => {
+  const catalogue = seedCatalogue();
+  catalogue.dashboard_population.automatic_candidates = {
+    match: "all",
+    conditions: [
+      { field: "manufacturer", operator: "equals", value: "Reolink" },
+      { field: "entity_name", operator: "contains", value: "Battery temperature" },
+    ],
+  };
+  const classification = { source_role: "standalone", battery_health: "automatic" };
+  assert.equal(batteryHealthIncluded(catalogue, classification, device({ manufacturer: "Reolink", entity_names: ["Battery temperature"] })), true);
+  assert.equal(batteryHealthIncluded(catalogue, classification, device({ manufacturer: "Reolink" })), false);
 });
 
 test("an include rule can publish a device without a battery entity", () => {
@@ -39,16 +56,18 @@ test("an include rule can publish a device without a battery entity", () => {
 });
 
 test("exclusions, duplicates and ignore labels are omitted while monitor labels win", () => {
+  const catalogue = seedCatalogue();
   const automatic = { source_role: "standalone", battery_health: "automatic" };
-  assert.equal(batteryHealthIncluded({ ...automatic, battery_health: "exclude" }, device({ battery: true })), false);
-  assert.equal(batteryHealthIncluded({ ...automatic, source_role: "duplicate" }, device({ battery: true })), false);
-  assert.equal(batteryHealthIncluded(automatic, device({ battery: true, battery_ignore: true })), false);
-  assert.equal(batteryHealthIncluded({ source_role: "duplicate", battery_health: "exclude" }, device({ battery_monitor: true })), true);
+  const battery = { entity_device_classes: ["battery"] };
+  assert.equal(batteryHealthIncluded(catalogue, { ...automatic, battery_health: "exclude" }, device(battery)), false);
+  assert.equal(batteryHealthIncluded(catalogue, { ...automatic, source_role: "duplicate" }, device(battery)), false);
+  assert.equal(batteryHealthIncluded(catalogue, automatic, device({ ...battery, battery_ignore: true })), false);
+  assert.equal(batteryHealthIncluded(catalogue, { source_role: "duplicate", battery_health: "exclude" }, device({ battery_monitor: true })), true);
 });
 
 test("generated catalogue Jinja preserves offline devices and stable registry identifiers", () => {
   const catalogue = buildDeviceCatalogue(seedCatalogue(), [device({
-    battery: true,
+    entity_device_classes: ["battery"],
     battery_entity_id: "sensor.example_battery",
     entity_ids: ["sensor.example_battery", "binary_sensor.example_motion"],
     relevant_entity_ids: ["sensor.example_battery", "binary_sensor.example_motion"],

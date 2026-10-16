@@ -1,11 +1,40 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { catalogueRevision, classifyDevice, generateJinja, importLegacyCatalogue, seedCatalogue, validateCatalogue } from "../src/rules.mjs";
+import { automaticCandidateMatches, catalogueRevision, classifyDevice, generateJinja, importLegacyCatalogue, seedCatalogue, validateCatalogue } from "../src/rules.mjs";
 
 const device = (overrides = {}) => ({
   name: "Example", manufacturer: "Unknown", area: "Unassigned",
-  entity_names: [], entity_ids: [], camera_evidence: false, ...overrides,
+  entity_names: [], entity_ids: [], entity_device_classes: [], camera_evidence: false, ...overrides,
+});
+
+test("automatic candidate defaults are explicit and editable", () => {
+  const catalogue = seedCatalogue();
+  assert.equal(automaticCandidateMatches(catalogue, device({ entity_device_classes: ["battery"] })), true);
+  assert.equal(automaticCandidateMatches(catalogue, device({ entity_ids: ["sensor.example_battery_level"] })), true);
+  assert.equal(automaticCandidateMatches(catalogue, device()), false);
+  catalogue.dashboard_population.automatic_candidates = {
+    match: "all",
+    conditions: [
+      { field: "manufacturer", operator: "equals", value: "IKEA of Sweden" },
+      { field: "entity_name", operator: "contains", value: "Battery" },
+    ],
+  };
+  assert.equal(automaticCandidateMatches(catalogue, device({ manufacturer: "IKEA of Sweden", entity_names: ["Battery"] })), true);
+  assert.equal(automaticCandidateMatches(catalogue, device({ manufacturer: "IKEA of Sweden" })), false);
+});
+
+test("legacy catalogues without a population policy retain the managed defaults", () => {
+  const catalogue = seedCatalogue();
+  delete catalogue.dashboard_population;
+  assert.deepEqual(validateCatalogue(catalogue), []);
+  assert.equal(automaticCandidateMatches(catalogue, device({ entity_device_classes: ["battery"] })), true);
+});
+
+test("invalid automatic candidate policy is rejected", () => {
+  const catalogue = seedCatalogue();
+  catalogue.dashboard_population.automatic_candidates.conditions = [];
+  assert.match(validateCatalogue(catalogue).join("\n"), /automatic_candidates\.conditions must contain at least one condition/);
 });
 
 test("seeded catalogue classifies the exact IKEA dual-button entity pair", () => {

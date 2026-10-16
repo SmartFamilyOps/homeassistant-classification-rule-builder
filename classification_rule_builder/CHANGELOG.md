@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.0
+
+- Make the Battery Health **Automatic candidates** policy editable in the app rather than hard-coded in the compiler.
+- Support ordered evidence rows with selectable fields, comparisons and values, plus **match any** or **match all** evaluation.
+- Preserve the existing battery device-class and battery-named entity checks as backward-compatible defaults.
+- Include registered and runtime entity device classes in discovery evidence, including disabled registry entities where Home Assistant supplies their device class.
+- Apply candidate-policy changes immediately to preview filters and change counts, then validate, back up and publish them with the governed catalogue.
+
 ## 0.8.0
 
 - Open app-owned compatible dashboard definitions in the Dashboard Builder and maintain their Home Assistant title, icon, description, sidebar and administrator settings.

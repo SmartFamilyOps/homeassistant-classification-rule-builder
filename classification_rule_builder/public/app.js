@@ -17,6 +17,20 @@ const $ = (selector) => document.querySelector(selector);
 const clone = (value) => structuredClone(value);
 const lower = (value) => String(value ?? "").trim().toLocaleLowerCase("en-GB");
 
+const DEFAULT_AUTOMATIC_CANDIDATES = {
+  match: "any",
+  conditions: [
+    { field: "entity_device_class", operator: "equals", value: "battery" },
+    { field: "entity_id", operator: "contains", value: "battery" },
+  ],
+};
+
+function ensurePopulationPolicy(catalogue) {
+  catalogue.dashboard_population ??= {};
+  catalogue.dashboard_population.automatic_candidates ??= clone(DEFAULT_AUTOMATIC_CANDIDATES);
+  return catalogue.dashboard_population.automatic_candidates;
+}
+
 async function api(path, options = {}) {
   const response = await fetch(`api/${path}`, {
     ...options,
@@ -51,8 +65,18 @@ function conditionMatches(condition, device) {
   if (condition.field === "camera_evidence") return Boolean(device.camera_evidence) === (lower(condition.value) === "true");
   const scalar = { manufacturer: device.manufacturer, device_name: device.name, area: device.area }[condition.field];
   if (scalar !== undefined) return compareScalar(scalar, condition.operator, condition.value);
-  const values = condition.field === "entity_name" ? device.entity_names : device.entity_ids;
+  const values = {
+    entity_name: device.entity_names,
+    entity_id: device.entity_ids,
+    entity_device_class: device.entity_device_classes,
+  }[condition.field];
   return (values ?? []).some((value) => compareScalar(value, condition.operator, condition.value));
+}
+
+function automaticCandidateMatches(catalogue, device) {
+  const policy = ensurePopulationPolicy(catalogue);
+  const matches = policy.conditions.map((condition) => conditionMatches(condition, device));
+  return policy.match === "all" ? matches.every(Boolean) : matches.some(Boolean);
 }
 
 function classify(catalogue, device) {
@@ -74,20 +98,20 @@ function classify(catalogue, device) {
   return { ...catalogue.fallback, asset_group: "", source_role: "standalone", battery_health: catalogue.fallback.battery_health ?? "automatic", rule_name: "Fallback", rule_id: null };
 }
 
-function batteryHealthIncluded(result, device) {
+function batteryHealthIncluded(catalogue, result, device) {
   if (device.battery_monitor) return true;
   if (device.battery_ignore) return false;
   if (result.source_role === "duplicate") return false;
   if (result.battery_health === "include") return true;
   if (result.battery_health === "exclude") return false;
-  return Boolean(device.battery);
+  return automaticCandidateMatches(catalogue, device);
 }
 
 function previewChanged(device) {
   const current = classify(state.catalogue, device);
   const previous = classify(state.baseline, device);
   return current.function !== previous.function
-    || batteryHealthIncluded(current, device) !== batteryHealthIncluded(previous, device);
+    || batteryHealthIncluded(state.catalogue, current, device) !== batteryHealthIncluded(state.baseline, previous, device);
 }
 
 function markDirty() {
@@ -353,6 +377,56 @@ function renderConditions(rule) {
   }
 }
 
+function renderCandidatePolicy() {
+  const policy = ensurePopulationPolicy(state.catalogue);
+  $("#candidate-match").value = policy.match;
+  const container = $("#candidate-conditions");
+  container.replaceChildren();
+  for (const [index, condition] of policy.conditions.entries()) {
+    const row = document.createElement("div");
+    row.className = "candidate-condition-row";
+    const field = document.createElement("select");
+    field.setAttribute("aria-label", `Candidate ${index + 1} evidence field`);
+    for (const [value, definition] of Object.entries(state.meta.fields)) field.append(option(value, definition.label, condition.field));
+    const operator = document.createElement("select");
+    operator.setAttribute("aria-label", `Candidate ${index + 1} comparison`);
+    const type = state.meta.fields[condition.field].type;
+    for (const value of state.meta.operators[type]) operator.append(option(value, value.replaceAll("_", " "), condition.operator));
+    const value = type === "boolean" ? document.createElement("select") : document.createElement("input");
+    value.setAttribute("aria-label", `Candidate ${index + 1} value`);
+    if (type === "boolean") {
+      value.append(option("true", "Yes", lower(condition.value)), option("false", "No", lower(condition.value)));
+    } else {
+      value.value = condition.value;
+      value.placeholder = "Comparison value";
+    }
+    field.addEventListener("change", () => {
+      condition.field = field.value;
+      const nextType = state.meta.fields[condition.field].type;
+      condition.operator = state.meta.operators[nextType][0];
+      condition.value = nextType === "boolean" ? "true" : "";
+      markDirty();
+      renderCandidatePolicy();
+    });
+    operator.addEventListener("change", () => { condition.operator = operator.value; markDirty(); });
+    value.addEventListener("input", () => { condition.value = value.value; markDirty(); });
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "danger";
+    remove.title = "Remove automatic candidate condition";
+    remove.setAttribute("aria-label", `Remove candidate condition ${index + 1}`);
+    remove.textContent = "×";
+    remove.addEventListener("click", () => {
+      if (policy.conditions.length === 1) return status("error", "A candidate policy needs evidence", "Add another condition before removing this one.");
+      policy.conditions.splice(index, 1);
+      markDirty();
+      renderCandidatePolicy();
+    });
+    row.append(field, operator, value, remove);
+    container.append(row);
+  }
+}
+
 function bindText(selector, rule, property) {
   const element = $(selector);
   element.value = rule[property] ?? "";
@@ -398,8 +472,8 @@ function renderPreview() {
   const filter = $("#device-filter").value;
   const devices = state.devices.filter((device) => {
     const result = classify(state.catalogue, device);
-    if (filter === "battery_health") return batteryHealthIncluded(result, device);
-    if (filter === "excluded") return !batteryHealthIncluded(result, device);
+    if (filter === "battery_health") return batteryHealthIncluded(state.catalogue, result, device);
+    if (filter === "excluded") return !batteryHealthIncluded(state.catalogue, result, device);
     if (filter === "all") return result.source_role !== "duplicate";
     if (filter === "duplicates") return result.source_role === "duplicate";
     if (filter === "all_with_duplicates") return true;
@@ -433,13 +507,13 @@ function renderPreview() {
       functionCell.append(changed);
     }
     const scopeCell = row.insertCell();
-    const included = batteryHealthIncluded(result, device);
+    const included = batteryHealthIncluded(state.catalogue, result, device);
     scopeCell.textContent = included ? "Included" : "Excluded";
     const scopeReason = document.createElement("small");
     scopeReason.textContent = result.source_role === "duplicate"
       ? "Duplicate source"
       : result.battery_health === "automatic"
-        ? device.battery ? "Battery entity discovered" : "No battery entity discovered"
+        ? automaticCandidateMatches(state.catalogue, device) ? "Automatic candidate matched" : "No automatic candidate matched"
         : `Rule: ${result.battery_health}`;
     scopeCell.append(scopeReason);
     const assetCell = row.insertCell();
@@ -580,14 +654,17 @@ async function initialise() {
   try {
     const [rules, meta] = await Promise.all([api("rules"), api("meta")]);
     state.catalogue = rules.catalogue;
+    const populationPolicyMigrated = !state.catalogue.dashboard_population?.automatic_candidates;
+    ensurePopulationPolicy(state.catalogue);
     state.baseline = clone(rules.catalogue);
     state.revision = rules.revision;
-    state.publicationRequired = Boolean(rules.publication_required);
+    state.publicationRequired = Boolean(rules.publication_required || populationPolicyMigrated);
     state.meta = meta;
     state.selected = state.catalogue.rules[0]?.id ?? null;
     $("#save").disabled = !state.publicationRequired;
     renderRules();
     renderEditor();
+    renderCandidatePolicy();
     renderSummary();
     const title = rules.imported ? "Existing classifier imported" : rules.seeded ? "Starter catalogue ready" : "Catalogue loaded";
     const detail = rules.imported
@@ -608,6 +685,15 @@ $("#add-condition").addEventListener("click", () => {
   rule.conditions.push({ field: "entity_name", operator: "equals", value: "" });
   markDirty();
   renderEditor();
+});
+$("#candidate-match").addEventListener("change", (event) => {
+  ensurePopulationPolicy(state.catalogue).match = event.target.value;
+  markDirty();
+});
+$("#add-candidate-condition").addEventListener("click", () => {
+  ensurePopulationPolicy(state.catalogue).conditions.push({ field: "entity_device_class", operator: "equals", value: "" });
+  markDirty();
+  renderCandidatePolicy();
 });
 $("#move-up").addEventListener("click", () => moveSelected(-1));
 $("#move-down").addEventListener("click", () => moveSelected(1));

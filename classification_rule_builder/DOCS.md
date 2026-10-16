@@ -4,7 +4,7 @@ Use the **Web UI** tab to maintain deterministic device-classification rules wit
 
 Use the **Classification Rules** tab to maintain the shared catalogue. The **Dashboard Builder** tab is the configuration home for reusable discovery dashboards that consume the same catalogue.
 
-The **Battery Health discovery scope** panel above the rules makes dashboard population explicit. Automatic candidates have an entity with runtime `device_class = battery` or a registered entity ID containing `battery`; ordered rules, duplicate handling and the `battery_monitor` / `battery_ignore` labels then determine the final membership.
+The **Battery Health discovery scope** panel above the rules is an editable dashboard-population policy. Add or remove candidate conditions, select the evidence field, comparison and value, and choose whether any or all conditions must match. The shipped defaults accept an entity with registered or runtime `device_class = battery`, or a registered entity ID containing `battery`. Ordered rules, duplicate handling and the `battery_monitor` / `battery_ignore` labels then determine final membership.
 
 These tabs are inside **Open Web UI** and the app's sidebar page. They do not replace Home Assistant's fixed **Info**, **Documentation**, **Configuration** and **Log** app-management tabs.
 
@@ -27,7 +27,7 @@ After later app upgrades, startup refreshes only the recognised SmartFamilyOps m
 
 The Battery Health **Edit Device** icon opens the matching native Home Assistant device page using its stable registry ID. Use this pattern for other builder-managed views that need to hand users from discovered data to existing Home Assistant configuration.
 
-The app reads Home Assistant's device, entity and area registries. Disabled registered entities are included as classification evidence without enabling them.
+The app reads Home Assistant's device, entity and area registries. Disabled registered entities are included as classification and automatic-candidate evidence without enabling them. Candidate edits participate in preview, validation, publication, backup and rollback with the rest of the catalogue.
 
 The reusable classifier and local device catalogue are deliberately separate. The classifier is portable SmartFamilyOps logic. The device catalogue contains installation-specific IDs and evaluated dashboard membership. Users manage both through this app; neither generated Jinja file should be edited manually.
 

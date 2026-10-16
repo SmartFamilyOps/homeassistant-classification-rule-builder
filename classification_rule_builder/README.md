@@ -20,8 +20,9 @@ The app configuration is organised into two in-app sections:
 - Restores the complete previous set if a write or reload fails.
 - Rejects stale saves when another browser session has changed the catalogue.
 - Groups multiple Home Assistant records that represent one physical asset and marks primary or duplicate sources explicitly.
-- Makes Battery Health dashboard membership an explicit rule outcome: include, exclude, or automatic when a battery entity exists.
-- Shows the complete Battery Health population policy above the rule editor so automatic battery evidence and label overrides are visible rather than hidden in the compiler.
+- Makes Battery Health dashboard membership an explicit rule outcome: include, exclude, or automatic under an editable candidate policy.
+- Lets users maintain automatic candidate evidence with the same safe field, comparison and `all`/`any` controls used by classification rules.
+- Shows the complete Battery Health population policy above the rule editor so automatic evidence and label overrides are governed rather than hidden in the compiler.
 - Recognises and imports the established SmartFamilyOps Jinja classifier on first run; an unfamiliar template is refused rather than overwritten.
 - Opens Home Assistant's installed-apps page for update checks and app management without granting this app elevated Supervisor permissions.
 - Reloads the app interface on demand and serves frontend assets without browser caching so a newly installed interface appears immediately.
@@ -87,6 +88,7 @@ The builder supplies each discovered device to `classify_device`. The managed cl
 | `area` | Home Assistant area |
 | `entity_names` | Lowercase list of registered entity names or normalized entity-ID names |
 | `entity_ids` | Lowercase list of registered entity IDs |
+| `entity_device_classes` | Lowercase list of device classes from registered and runtime entities |
 | `camera_evidence` | Boolean derived from camera-specific registered entities |
 
 The returned classification also includes `asset_group`, `source_role` and `battery_health`.
@@ -97,10 +99,14 @@ Cloud** as the primary source and **Front Door Lock - Bluetooth Diagnostic** as
 a duplicate source for the `front-door-lock` logical asset.
 
 `battery_health` is one of `include`, `exclude` or `automatic`. Automatic
-membership includes a device when discovery finds a battery entity. This keeps
-the default useful for new devices while allowing rules such as mobile-phone
-evidence to exclude devices deliberately. Include forces membership even if no
-battery entity is recognised; the dashboard then shows an unknown battery icon.
+membership evaluates the editable **Automatic candidates** policy. The shipped
+policy matches any entity whose device class equals `battery`, or any registered
+entity ID containing `battery`. Users can add, remove or replace those conditions
+and choose whether any or all must match. This keeps the default useful for new
+devices while allowing the discovery definition to evolve without a code change.
+Rules can still exclude devices such as phones deliberately. Include forces
+membership even when the automatic policy does not match; the dashboard then
+shows an unknown battery icon.
 The published device catalogue consumes this result, so membership is maintained
 in the builder rather than hard-coded in the dashboard.
 
@@ -108,11 +114,13 @@ in the builder rather than hard-coded in the dashboard.
 compatibility. Monitor wins as an explicit inclusion; ignore removes an automatic
 or rule-included device. These registry labels are evaluated during publication.
 
-The rules workspace displays this membership precedence above the ordered rules.
-Automatic battery evidence means an entity whose runtime `device_class` is
-`battery`, or a registered entity ID containing `battery`. Rule-level inclusion or
-exclusion and duplicate-source handling are then applied, while `battery_monitor`
-and `battery_ignore` remain explicit Home Assistant label overrides.
+The rules workspace displays and edits this membership precedence above the
+ordered rules. Candidate changes affect the browser preview immediately and are
+stored in `dashboard_population.automatic_candidates` in the source catalogue.
+They pass the same schema, Jinja compilation, backup, stale-save and rollback
+controls as classification changes. Rule-level inclusion or exclusion and
+duplicate-source handling are then applied, while `battery_monitor` and
+`battery_ignore` remain explicit Home Assistant label overrides.
 
 The Battery Health dashboard imports `battery_health_devices` from the generated
 device catalogue. Each record contains stable device and entity IDs, registry

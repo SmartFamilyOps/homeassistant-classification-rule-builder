@@ -37,6 +37,7 @@ test("device evidence chooses an enabled battery entity and retains offline stat
     battery_entity_id: "sensor.example_battery",
     battery_ignore: false,
     battery_monitor: true,
+    entity_device_classes: ["battery"],
     relevant_entity_ids: ["sensor.example_battery", "binary_sensor.example_motion"],
   });
 });
@@ -83,9 +84,13 @@ test("summary groups device and entity totals with active and inactive breakdown
 
 test("the rules workspace exposes the complete Battery Health membership policy", async () => {
   const html = await readFile(new URL("../public/index.html", import.meta.url), "utf8");
+  const script = await readFile(new URL("../public/app.js", import.meta.url), "utf8");
   assert.match(html, /id="battery-health-scope-title"/);
-  assert.match(html, /entity device_class = battery/);
-  assert.match(html, /entity ID contains <code>battery<\/code>/);
+  assert.match(html, /id="candidate-match"/);
+  assert.match(html, /id="candidate-conditions"/);
+  assert.match(html, /id="add-candidate-condition"/);
+  assert.match(script, /entity_device_class/);
+  assert.match(script, /automaticCandidateMatches/);
   assert.match(html, /battery_monitor/);
   assert.match(html, /battery_ignore/);
   assert.match(html, /Duplicate sources are hidden/);
