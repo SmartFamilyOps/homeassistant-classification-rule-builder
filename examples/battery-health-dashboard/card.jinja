@@ -78,7 +78,7 @@
 {% set device_url = '/config/devices/device/' ~ (i.device_id | urlencode) -%}
 {% set battery_cell = '<font color="#2196f3"><ha-icon icon="' ~ i.battery_icon ~ '"></ha-icon></font>' ~ ((' <strong>' ~ i.level ~ '</strong>') if i.level else '') -%}
 {% if i.entity_id -%}{% set battery_cell = '<abbr title="Source entity: ' ~ i.entity_id ~ '">' ~ battery_cell ~ '</abbr>' -%}{% endif -%}
-{% set tools_cell = '<a href="' ~ device_url ~ '" target="_blank" rel="noopener noreferrer" title="Open this device in a new tab" aria-label="Open ' ~ i.name ~ ' in a new Home Assistant tab"><ha-icon icon="mdi:tools"></ha-icon></a>' -%}
+{% set tools_cell = '<a href="' ~ device_url ~ '" target="_self" title="Open this device in the current Home Assistant view" aria-label="Open ' ~ i.name ~ ' in this Home Assistant view"><ha-icon icon="mdi:tools"></ha-icon></a>' -%}
 {% set table.text = table.text ~ '\n| ' ~ loop.index ~ ' | <strong>' ~ i.ha_status_display ~ '</strong> | ' ~ battery_cell ~ ' | <abbr title="Home Assistant device registry value for device: ' ~ i.device_id ~ '"><strong>' ~ i.name ~ '</strong></abbr> | <abbr title="Home Assistant area registry value for device: ' ~ i.device_id ~ '">' ~ i.area ~ '</abbr> | <abbr title="Home Assistant device registry value for device: ' ~ i.device_id ~ '">' ~ i.manufacturer ~ '</abbr> | ' ~ i.function ~ ' | ' ~ tools_cell ~ ' | <a href="' ~ configure_url ~ '" target="_blank" rel="noopener noreferrer">Configure</a> |' -%}
 {% endfor -%}
 {{- '\n\n' ~ table.text ~ '\n\n' -}}

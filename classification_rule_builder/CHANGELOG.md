@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.10.5
+
+- Keep Battery Health Edit Device navigation in the current Home Assistant view so origin-relative device routes work consistently in browsers and the Companion app.
+
 ## 0.10.4
 
 - Remove the explanatory Home Assistant status and catalogue interpretation paragraphs beneath the Battery Health table.

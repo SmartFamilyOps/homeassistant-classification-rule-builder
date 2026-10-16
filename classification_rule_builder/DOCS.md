@@ -25,7 +25,7 @@ If a write or reload fails, the complete preceding set is restored and Home Assi
 
 After later app upgrades, startup refreshes only the recognised SmartFamilyOps managed Battery Health card when the complete catalogue publication is present. This delivers presentation fixes without treating user-authored cards as app-owned content.
 
-The Battery Health **Edit Device** icon opens the matching native Home Assistant device page in a separate tab using its stable registry ID. Use this pattern for other builder-managed views that need to hand users from discovered data to existing Home Assistant configuration.
+The Battery Health **Edit Device** icon opens the matching native Home Assistant device page in the current Home Assistant view using its stable registry ID. The URL is origin-relative (`/config/devices/device/{device_id}`), so it works through the LAN address, the interactive browser hostname and the Home Assistant Companion app. Keeping navigation in the current view preserves the app's authenticated route and avoids opening a separate browser context that may be blocked by Cloudflare.
 
 Battery Health uses the controlled SmartFamilyOps transparent logo and the same compact brand-header treatment as Front Door Control. The app installs the logo under `/config/www/branding` so the dashboard remains available without an external image host.
 
