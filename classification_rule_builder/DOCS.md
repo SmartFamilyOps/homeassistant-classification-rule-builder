@@ -31,6 +31,25 @@ Battery Health uses the controlled SmartFamilyOps transparent logo and the same 
 
 The app reads Home Assistant's device, entity and area registries. Disabled registered entities are included as classification and automatic-candidate evidence without enabling them. Candidate edits participate in preview, validation, publication, backup and rollback with the rest of the catalogue.
 
+## A Splunk and Cribl mental model
+
+The Discovery Dashboard Builder can be explained as a small metadata pipeline for Home Assistant. The analogy is useful for Splunk talks because it follows the same shape as an ingest processor or Cribl pipeline:
+
+| Pipeline stage | SmartFamilyOps behaviour | Splunk / Cribl analogy |
+| --- | --- | --- |
+| Source | Read Home Assistant device, entity, area and label registries. | Ingest source or incoming event stream. |
+| Enrichment | Add manufacturer, area, entity names, device classes, availability evidence and stable registry IDs. | Field extraction and enrichment. |
+| Classification | Apply ordered rules with deterministic `all` / `any` conditions and return function, reason and source role. | Eval, route and lookup logic. |
+| Filter / route | Apply dashboard-specific automatic candidates, include/exclude decisions and duplicate handling. | Pipeline routing and stream selection. |
+| Transform | Publish the installation-specific device catalogue Jinja output. | Event transformation into a useful downstream schema. |
+| Dashboard output | Render a focused Home Assistant dashboard using the catalogue and live state lookups. | Search, dashboard or observability consumer. |
+
+The important difference is timing. Splunk and Cribl usually transform events as they enter an analytics platform. This builder processes Home Assistant registry metadata into governed operational views, then reads live entity state when a dashboard renders. The classification rulebook is portable; the device catalogue is installation-specific; the dashboard is the presentation layer.
+
+The talk-ready explanation is: **“We built a Cribl-style metadata pipeline for Home Assistant. It discovers the registry, enriches each device, classifies it deterministically, routes it into dashboard populations, publishes a compact catalogue and renders an operational view.”**
+
+This model also defines a future extension path: expose the stages explicitly in the builder as **Source → Enrichment → Classification → Filter/Route → Dashboard output**, with a preview after each stage. That would make discovery logic easier to explain, test and govern without changing the two-template ownership model.
+
 The reusable classifier and local device catalogue are deliberately separate. The classifier is portable SmartFamilyOps logic. The aggregate device catalogue contains installation-specific IDs and a separate evaluated membership list for every compatible dashboard. **Save as new dashboard** copies the source policy; later policy edits remain isolated. Users manage both through this app; neither generated Jinja file should be edited manually.
 
 See the project README for the dashboard input contract and recovery procedure.

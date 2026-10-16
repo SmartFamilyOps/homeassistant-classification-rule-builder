@@ -112,6 +112,10 @@ shows an unknown battery icon.
 The published device catalogue consumes this result, so membership is maintained
 in the builder rather than hard-coded in the dashboard.
 
+### Splunk and Cribl analogy
+
+The builder is a small metadata pipeline for Home Assistant: it discovers registry data, enriches each device, applies deterministic classification, routes devices into dashboard populations, publishes a compact catalogue and renders an operational view. That makes it a useful Splunk talk example because the stages resemble an ingest processor or Cribl pipeline. The difference is timing: the builder processes Home Assistant metadata into governed views, while Splunk and Cribl generally transform events as they enter an analytics platform. The portable rulebook, installation-specific catalogue and dashboard presentation remain separate layers.
+
 `battery_monitor` and `battery_ignore` Home Assistant labels remain supported for
 compatibility. Monitor wins as an explicit inclusion; ignore removes an automatic
 or rule-included device. These registry labels are evaluated during publication.
