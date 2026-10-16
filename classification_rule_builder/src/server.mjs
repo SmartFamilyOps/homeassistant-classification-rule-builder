@@ -6,7 +6,7 @@ import { createDashboard, deleteDashboard, discoverDevices, listDashboards, load
 import { BATTERY_HEALTH_DASHBOARD, batteryHealthConfig, findBatteryHealthDashboard, findLegacyBatteryHealthDashboard, migrateBatteryHealthConfig, upgradeManagedBatteryHealthCard, validDashboardPath } from "./dashboard.mjs";
 import { buildDeviceCatalogue, generateDeviceCatalogueJinja } from "./device-catalogue.mjs";
 import { catalogueRevision, classifyDevice, FIELD_DEFINITIONS, generateJinja, OPERATORS, validateCatalogue } from "./rules.mjs";
-import { pathsForStatus, pruneBackups, readCatalogue, restoreFiles, saveFiles } from "./storage.mjs";
+import { pathsForStatus, pruneBackups, publicationRequired, readCatalogue, restoreFiles, saveFiles } from "./storage.mjs";
 
 const publicDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../public");
 const dashboardCardPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../dashboard/battery-health-card.jinja");
@@ -107,7 +107,9 @@ async function handle(request, response) {
   if (request.method === "GET" && url.pathname.endsWith("/styles.css")) return serveFile(response, "styles.css", "text/css; charset=utf-8");
   if (request.method === "GET" && url.pathname.endsWith("/health")) return json(response, 200, { healthy: true });
   if (request.method === "GET" && url.pathname.endsWith("/api/meta")) return json(response, 200, { fields: FIELD_DEFINITIONS, operators: OPERATORS, paths: pathsForStatus() });
-  if (request.method === "GET" && url.pathname.endsWith("/api/rules")) return json(response, 200, await readCatalogue());
+  if (request.method === "GET" && url.pathname.endsWith("/api/rules")) {
+    return json(response, 200, { ...await readCatalogue(), publication_required: await publicationRequired() });
+  }
   if (request.method === "GET" && url.pathname.endsWith("/api/discovery")) {
     const devices = await discoverDevices();
     return json(response, 200, { devices });

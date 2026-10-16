@@ -6,6 +6,7 @@ const state = {
   devices: [],
   selected: null,
   dirty: false,
+  publicationRequired: false,
   previewPage: 1,
 };
 
@@ -408,7 +409,8 @@ async function discover() {
     const result = await api("discovery");
     state.devices = result.devices;
     state.previewPage = 1;
-    status(state.dirty ? "waiting" : "ok", state.dirty ? "Unpublished changes" : "Catalogue loaded", `${state.devices.length} devices discovered, including disabled registered entities.`);
+    const publishPending = state.dirty || state.publicationRequired;
+    status(publishPending ? "waiting" : "ok", state.dirty ? "Unpublished changes" : state.publicationRequired ? "Catalogue publication required" : "Catalogue loaded", state.publicationRequired && !state.dirty ? "Publish once to create this version's managed device catalogue." : `${state.devices.length} devices discovered, including disabled registered entities.`);
     renderSummary();
     renderPreview();
   } catch (error) {
@@ -446,6 +448,7 @@ async function publish() {
     state.revision = result.revision;
     state.baseline = clone(state.catalogue);
     state.dirty = false;
+    state.publicationRequired = false;
     $("#confirm-dialog").close();
     status("ok", "Rules and device catalogue published", `${result.device_count} Battery Health devices were published. Home Assistant custom templates reloaded successfully; the prior pair is retained as one recovery set.`);
     renderSummary();
@@ -457,7 +460,7 @@ async function publish() {
     $("#validation-errors").hidden = false;
   } finally {
     $("#confirm-save").disabled = false;
-    $("#save").disabled = !state.dirty;
+    $("#save").disabled = !state.dirty && !state.publicationRequired;
   }
 }
 
@@ -467,9 +470,10 @@ async function initialise() {
     state.catalogue = rules.catalogue;
     state.baseline = clone(rules.catalogue);
     state.revision = rules.revision;
+    state.publicationRequired = Boolean(rules.publication_required);
     state.meta = meta;
     state.selected = state.catalogue.rules[0]?.id ?? null;
-    $("#save").disabled = true;
+    $("#save").disabled = !state.publicationRequired;
     renderRules();
     renderEditor();
     renderSummary();
@@ -479,7 +483,7 @@ async function initialise() {
       : rules.seeded
         ? "Review the seeded SmartFamilyOps rules before the first publish."
         : `Loaded revision ${rules.revision}.`;
-    status("ok", title, detail);
+    status(state.publicationRequired ? "waiting" : "ok", state.publicationRequired ? "Catalogue publication required" : title, state.publicationRequired ? "Publish once to create this version's managed device catalogue." : detail);
     await discover();
   } catch (error) {
     status("error", "Builder could not start", error.message);

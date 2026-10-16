@@ -51,6 +51,9 @@ test("the app exposes discovery, Apps navigation and interface-reload controls",
   assert.match(script, /window\.location\.reload\(\)/);
   assert.doesNotMatch(html, /Check for app updates/);
   assert.doesNotMatch(script, /app-update-check/);
+  assert.match(script, /publicationRequired/);
+  assert.match(script, /Catalogue publication required/);
+  assert.match(script, /!state\.dirty && !state\.publicationRequired/);
 });
 
 test("Home Assistant presents the product as Dashboard Builder", async () => {

@@ -42,6 +42,14 @@ export async function readCatalogue() {
   return { catalogue, revision: catalogueRevision(catalogue), seeded: true, imported: false };
 }
 
+export async function publicationRequired() {
+  const [deviceCatalogue, deviceTemplate] = await Promise.all([
+    readOptional(deviceCataloguePath),
+    readOptional(deviceTemplatePath),
+  ]);
+  return !deviceCatalogue || !deviceTemplate;
+}
+
 async function atomicWrite(file, content) {
   await mkdir(path.dirname(file), { recursive: true });
   const temporary = `${file}.new`;

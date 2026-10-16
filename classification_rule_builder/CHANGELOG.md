@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.1
+
+- Detect an incomplete publication set after upgrading from an earlier release.
+- Enable **Validate & publish** when the new managed device catalogue still needs to be generated, even when classification rules are unchanged.
+- Clear the migration prompt only after the complete rules-and-device publication succeeds.
+
 ## 0.7.0
 
 - Move Battery Health device membership out of the dashboard and into a published, installation-specific device catalogue.
