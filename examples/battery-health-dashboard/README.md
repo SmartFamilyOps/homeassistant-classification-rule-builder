@@ -9,12 +9,14 @@ The rendered table places Home Assistant availability immediately after the row 
 The canonical SmartFamilyOps route is:
 
 ```text
-/SmartFamilyOps/SmartFamilyOps-battery-health
+/smartfamilyops-dashboard/SmartFamilyOps-battery-health
 ```
 
 Home Assistant exposes one dashboard path and one view path, so this two-level
-route uses the dashboard URL key as the `SmartFamilyOps` namespace and the view
-path as the branded dashboard name. Home Assistant does not implement nested
+route uses the dashboard URL key as the SmartFamilyOps namespace and the view
+path as the branded dashboard name. Home Assistant requires the dashboard URL
+key to contain a hyphen and rejects uppercase characters, so a first segment of
+exactly `SmartFamilyOps` is not valid. Home Assistant does not implement nested
 dashboard folders; the two router segments provide the intended organisation.
 
 The previous `/battery-health/battery-health` route may be retained temporarily
