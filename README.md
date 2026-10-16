@@ -2,7 +2,7 @@
 
 SmartFamilyOps Discovery Dashboard Builder is a Home Assistant app for building discovery dashboards backed by deterministic, reusable device-classification rules. Its visual rule workspace removes the need to hand-edit Jinja.
 
-Battery Health dashboard population is also maintained visually: users can edit the automatic candidate fields, comparisons, values and `any`/`all` matching before previewing and publishing the governed catalogue.
+Dashboard population is also maintained visually: users select the compatible dashboard currently being edited, then maintain its independent automatic-candidate fields, comparisons, values and `any`/`all` matching before previewing and publishing the governed catalogues.
 
 ## Install in Home Assistant
 

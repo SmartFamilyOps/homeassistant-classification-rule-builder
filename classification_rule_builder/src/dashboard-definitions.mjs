@@ -1,4 +1,4 @@
-import { mkdir, readFile, readdir, rename, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 
@@ -25,6 +25,7 @@ export function newDashboardDefinition(source, input, existingPaths = []) {
     schema_version: DASHBOARD_SCHEMA_VERSION, owner: DASHBOARD_OWNER, id, source_id: source.id,
     title, description: String(input.description ?? `Created from ${source.title}`).trim(),
     icon: String(input.icon ?? source.icon ?? "mdi:view-dashboard-outline").trim(),
+    population_policy: structuredClone(input.population_policy ?? source.population_policy),
     url_path: urlPath, view_path: slug, show_in_sidebar: Boolean(input.show_in_sidebar),
     require_admin: input.require_admin !== false, status: "draft",
     created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
@@ -61,6 +62,35 @@ export async function saveDashboardDefinition(definition) {
   return persistent;
 }
 
+async function readOptional(file) {
+  try { return await readFile(file, "utf8"); } catch (error) {
+    if (error.code === "ENOENT") return null;
+    throw error;
+  }
+}
+
+export async function saveDashboardDefinitionSet(definitions) {
+  const previous = new Map();
+  try {
+    for (const definition of definitions) {
+      const file = path.join(definitionsDirectory, `${definition.id}.json`);
+      previous.set(file, await readOptional(file));
+      await saveDashboardDefinition(definition);
+    }
+  } catch (error) {
+    await restoreDashboardDefinitionSet(previous);
+    throw error;
+  }
+  return previous;
+}
+
+export async function restoreDashboardDefinitionSet(previous) {
+  for (const [file, content] of previous.entries()) {
+    if (content === null) await rm(file, { force: true });
+    else await atomicWrite(file, content);
+  }
+}
+
 export async function readDashboardDefinitions() {
   try {
     const names = (await readdir(definitionsDirectory)).filter((name) => name.endsWith(".json"));
@@ -73,11 +103,12 @@ export async function readDashboardDefinitions() {
   }
 }
 
-export function batteryHealthDefinition(dashboard) {
+export function batteryHealthDefinition(dashboard, populationPolicy) {
   return {
     schema_version: DASHBOARD_SCHEMA_VERSION, owner: DASHBOARD_OWNER, id: "battery-health", source_id: null,
     title: dashboard.title, description: "SmartFamilyOps battery and power discovery dashboard.",
     icon: dashboard.icon || "mdi:battery-sync", url_path: dashboard.url_path, view_path: "battery-health",
+    population_policy: structuredClone(populationPolicy),
     show_in_sidebar: dashboard.show_in_sidebar, require_admin: dashboard.require_admin, status: "published",
     created_at: null, updated_at: new Date().toISOString(),
   };

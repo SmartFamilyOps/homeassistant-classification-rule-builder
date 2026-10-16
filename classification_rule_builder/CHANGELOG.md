@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.10.0
+
+- Give every compatible dashboard its own automatic-candidate population policy and published device list.
+- Add a prominent **Currently editing** dashboard selector above the population-policy editor, including the exact Home Assistant route.
+- Make **Open compatible dashboard** select the same dashboard in both the dashboard editor and population-policy editor.
+- Copy the source population policy during **Save as new dashboard**, then allow the new dashboard to diverge independently.
+- Publish all compatible dashboard populations into one versioned aggregate Jinja catalogue keyed by dashboard definition ID.
+- Retarget existing managed dashboard copies from the former shared Battery Health list to their own definition ID during publication, with rollback of files, definitions and dashboard cards if publication fails.
+
 ## 0.9.0
 
 - Make the Battery Health **Automatic candidates** policy editable in the app rather than hard-coded in the compiler.

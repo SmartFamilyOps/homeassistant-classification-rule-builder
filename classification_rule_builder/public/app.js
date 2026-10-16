@@ -9,6 +9,7 @@ const state = {
   publicationRequired: false,
   previewPage: 1,
   dashboards: [],
+  baselineDashboards: [],
   dashboard: null,
 };
 
@@ -73,8 +74,7 @@ function conditionMatches(condition, device) {
   return (values ?? []).some((value) => compareScalar(value, condition.operator, condition.value));
 }
 
-function automaticCandidateMatches(catalogue, device) {
-  const policy = ensurePopulationPolicy(catalogue);
+function automaticCandidateMatches(policy, device) {
   const matches = policy.conditions.map((condition) => conditionMatches(condition, device));
   return policy.match === "all" ? matches.every(Boolean) : matches.some(Boolean);
 }
@@ -98,20 +98,32 @@ function classify(catalogue, device) {
   return { ...catalogue.fallback, asset_group: "", source_role: "standalone", battery_health: catalogue.fallback.battery_health ?? "automatic", rule_name: "Fallback", rule_id: null };
 }
 
-function batteryHealthIncluded(catalogue, result, device) {
+function batteryHealthIncluded(policy, result, device) {
   if (device.battery_monitor) return true;
   if (device.battery_ignore) return false;
   if (result.source_role === "duplicate") return false;
   if (result.battery_health === "include") return true;
   if (result.battery_health === "exclude") return false;
-  return automaticCandidateMatches(catalogue, device);
+  return automaticCandidateMatches(policy, device);
+}
+
+function selectedDashboard() {
+  return state.dashboard ?? state.dashboards[0] ?? null;
+}
+
+function populationPolicy(dashboard = selectedDashboard()) {
+  if (!dashboard) return ensurePopulationPolicy(state.catalogue);
+  dashboard.population_policy ??= clone(ensurePopulationPolicy(state.catalogue));
+  return dashboard.population_policy;
 }
 
 function previewChanged(device) {
   const current = classify(state.catalogue, device);
   const previous = classify(state.baseline, device);
+  const dashboard = selectedDashboard();
+  const baselineDashboard = state.baselineDashboards.find((candidate) => candidate.id === dashboard?.id) ?? dashboard;
   return current.function !== previous.function
-    || batteryHealthIncluded(state.catalogue, current, device) !== batteryHealthIncluded(state.baseline, previous, device);
+    || batteryHealthIncluded(populationPolicy(dashboard), current, device) !== batteryHealthIncluded(populationPolicy(baselineDashboard), previous, device);
 }
 
 function markDirty() {
@@ -180,16 +192,37 @@ async function loadDashboardStatus() {
 
 async function loadCompatibleDashboards() {
   const result = await api("dashboards");
-  state.dashboards = result.dashboards;
+  const draftPolicies = new Map(state.dashboards.map((dashboard) => [dashboard.id, dashboard.population_policy]));
+  state.dashboards = result.dashboards.map((dashboard) => ({
+    ...dashboard,
+    population_policy: state.dirty && draftPolicies.has(dashboard.id)
+      ? draftPolicies.get(dashboard.id)
+      : dashboard.population_policy,
+  }));
+  const selectedId = state.dashboard?.id ?? state.dashboards[0]?.id;
+  state.dashboard = state.dashboards.find((dashboard) => dashboard.id === selectedId) ?? state.dashboards[0] ?? null;
   const select = $("#compatible-dashboard");
   select.replaceChildren();
+  const populationSelect = $("#population-dashboard");
+  populationSelect.replaceChildren();
   for (const dashboard of state.dashboards) {
     const option = document.createElement("option");
     option.value = dashboard.id;
     option.textContent = `${dashboard.title} · ${dashboard.status}`;
     select.append(option);
+    populationSelect.append(option.cloneNode(true));
   }
+  select.value = state.dashboard?.id ?? "";
+  populationSelect.value = state.dashboard?.id ?? "";
   $("#open-compatible-dashboard").disabled = !state.dashboards.length;
+  renderDashboardContext();
+}
+
+function renderDashboardContext() {
+  const dashboard = selectedDashboard();
+  $("#scope-dashboard-title").textContent = dashboard?.title ?? "Dashboard";
+  $("#population-dashboard-route").textContent = dashboard ? `/${dashboard.url_path}/${dashboard.view_path}` : "No compatible dashboard selected";
+  $("#population-dashboard").value = dashboard?.id ?? "";
 }
 
 function renderDashboardEditor() {
@@ -210,6 +243,9 @@ function renderDashboardEditor() {
 
 function openCompatibleDashboard() {
   state.dashboard = state.dashboards.find((dashboard) => dashboard.id === $("#compatible-dashboard").value) ?? null;
+  renderDashboardContext();
+  renderCandidatePolicy();
+  renderPreview();
   renderDashboardEditor();
 }
 
@@ -262,10 +298,14 @@ async function confirmSaveAs(event) {
       description: $("#save-as-description").value,
       show_in_sidebar: $("#save-as-sidebar").checked,
       require_admin: true,
+      population_policy: clone(populationPolicy(state.dashboard)),
     }) });
     $("#save-as-dialog").close();
     await loadCompatibleDashboards();
     state.dashboard = state.dashboards.find((dashboard) => dashboard.id === result.definition.id) ?? result.definition;
+    renderDashboardContext();
+    renderCandidatePolicy();
+    renderPreview();
     renderDashboardEditor();
     $("#dashboard-message").textContent = "Draft created. Its configuration, manifest and Home Assistant registration were created automatically.";
   } catch (error) {
@@ -378,7 +418,7 @@ function renderConditions(rule) {
 }
 
 function renderCandidatePolicy() {
-  const policy = ensurePopulationPolicy(state.catalogue);
+  const policy = populationPolicy();
   $("#candidate-match").value = policy.match;
   const container = $("#candidate-conditions");
   container.replaceChildren();
@@ -472,8 +512,8 @@ function renderPreview() {
   const filter = $("#device-filter").value;
   const devices = state.devices.filter((device) => {
     const result = classify(state.catalogue, device);
-    if (filter === "battery_health") return batteryHealthIncluded(state.catalogue, result, device);
-    if (filter === "excluded") return !batteryHealthIncluded(state.catalogue, result, device);
+    if (filter === "battery_health") return batteryHealthIncluded(populationPolicy(), result, device);
+    if (filter === "excluded") return !batteryHealthIncluded(populationPolicy(), result, device);
     if (filter === "all") return result.source_role !== "duplicate";
     if (filter === "duplicates") return result.source_role === "duplicate";
     if (filter === "all_with_duplicates") return true;
@@ -507,13 +547,13 @@ function renderPreview() {
       functionCell.append(changed);
     }
     const scopeCell = row.insertCell();
-    const included = batteryHealthIncluded(state.catalogue, result, device);
+    const included = batteryHealthIncluded(populationPolicy(), result, device);
     scopeCell.textContent = included ? "Included" : "Excluded";
     const scopeReason = document.createElement("small");
     scopeReason.textContent = result.source_role === "duplicate"
       ? "Duplicate source"
       : result.battery_health === "automatic"
-        ? automaticCandidateMatches(state.catalogue, device) ? "Automatic candidate matched" : "No automatic candidate matched"
+        ? automaticCandidateMatches(populationPolicy(), device) ? "Automatic candidate matched" : "No automatic candidate matched"
         : `Rule: ${result.battery_health}`;
     scopeCell.append(scopeReason);
     const assetCell = row.insertCell();
@@ -596,7 +636,7 @@ async function discover() {
     state.devices = result.devices;
     state.previewPage = 1;
     const publishPending = state.dirty || state.publicationRequired;
-    status(publishPending ? "waiting" : "ok", state.dirty ? "Unpublished changes" : state.publicationRequired ? "Catalogue publication required" : "Catalogue loaded", state.publicationRequired && !state.dirty ? "Publish once to create this version's managed device catalogue." : `${state.devices.length} devices discovered, including disabled registered entities.`);
+    status(publishPending ? "waiting" : "ok", state.dirty ? "Unpublished changes" : state.publicationRequired ? "Dashboard catalogue publication required" : "Dashboard catalogues loaded", state.publicationRequired && !state.dirty ? "Publish once to create independent device catalogues for each compatible dashboard." : `${state.devices.length} devices discovered, including disabled registered entities.`);
     renderSummary();
     renderPreview();
   } catch (error) {
@@ -609,9 +649,13 @@ async function discover() {
 async function validateDraft() {
   status("waiting", "Validating draft", "Checking the rule schema and compiling the generated Jinja in Home Assistant.");
   try {
-    await api("validate", { method: "POST", body: JSON.stringify({ catalogue: state.catalogue, devices: state.devices }) });
+    await api("validate", { method: "POST", body: JSON.stringify({
+      catalogue: state.catalogue,
+      devices: state.devices,
+      dashboard_policies: state.dashboards.map((dashboard) => ({ id: dashboard.id, population_policy: dashboard.population_policy })),
+    }) });
     $("#validation-errors").hidden = true;
-    $("#confirm-copy").textContent = `${state.catalogue.rules.filter((rule) => rule.enabled).length} enabled rules passed catalogue and Home Assistant Jinja validation. Publishing discovers current devices, creates one recovery set, writes the classifier and managed device catalogue, then reloads custom templates.`;
+    $("#confirm-copy").textContent = `${state.catalogue.rules.filter((rule) => rule.enabled).length} enabled rules and ${state.dashboards.length} dashboard population policies passed validation. Publishing discovers current devices, creates one recovery set, writes the shared classifier and independent dashboard catalogues, then reloads custom templates.`;
     $("#confirm-dialog").showModal();
     status("ok", "Validation passed", "Review the publish confirmation. No live file has changed yet.");
   } catch (error) {
@@ -628,15 +672,21 @@ async function validateDraft() {
 async function publish() {
   $("#confirm-save").disabled = true;
   $("#save").disabled = true;
-  status("waiting", "Publishing rules and devices", "Refreshing discovery, creating one recovery set and writing both generated templates.");
+  status("waiting", "Publishing rules and dashboard catalogues", "Refreshing discovery, creating one recovery set and writing the shared classifier plus each dashboard's independent device catalogue.");
   try {
-    const result = await api("save", { method: "POST", body: JSON.stringify({ catalogue: state.catalogue, base_revision: state.revision }) });
+    const result = await api("save", { method: "POST", body: JSON.stringify({
+      catalogue: state.catalogue,
+      base_revision: state.revision,
+      dashboard_policies: state.dashboards.map((dashboard) => ({ id: dashboard.id, population_policy: dashboard.population_policy })),
+    }) });
     state.revision = result.revision;
     state.baseline = clone(state.catalogue);
+    state.baselineDashboards = clone(state.dashboards);
     state.dirty = false;
     state.publicationRequired = false;
     $("#confirm-dialog").close();
-    status("ok", "Rules and device catalogue published", `${result.device_count} Battery Health devices were published. Home Assistant custom templates reloaded successfully; the prior pair is retained as one recovery set.`);
+    const selectedResult = result.dashboards?.find((dashboard) => dashboard.id === selectedDashboard()?.id);
+    status("ok", "Rules and dashboard catalogues published", `${selectedResult?.device_count ?? 0} devices were published for ${selectedDashboard()?.title ?? "the selected dashboard"}; ${result.dashboards?.length ?? 1} independent dashboard catalogue${result.dashboards?.length === 1 ? "" : "s"} were refreshed.`);
     renderSummary();
     renderRules();
     renderPreview();
@@ -652,7 +702,7 @@ async function publish() {
 
 async function initialise() {
   try {
-    const [rules, meta] = await Promise.all([api("rules"), api("meta")]);
+    const [rules, meta, dashboards] = await Promise.all([api("rules"), api("meta"), api("dashboards")]);
     state.catalogue = rules.catalogue;
     const populationPolicyMigrated = !state.catalogue.dashboard_population?.automatic_candidates;
     ensurePopulationPolicy(state.catalogue);
@@ -660,10 +710,22 @@ async function initialise() {
     state.revision = rules.revision;
     state.publicationRequired = Boolean(rules.publication_required || populationPolicyMigrated);
     state.meta = meta;
+    state.dashboards = dashboards.dashboards;
+    state.dashboard = state.dashboards.find((dashboard) => dashboard.id === "battery-health") ?? state.dashboards[0] ?? null;
+    state.baselineDashboards = clone(state.dashboards);
     state.selected = state.catalogue.rules[0]?.id ?? null;
     $("#save").disabled = !state.publicationRequired;
     renderRules();
     renderEditor();
+    const compatible = $("#compatible-dashboard");
+    const population = $("#population-dashboard");
+    for (const dashboard of state.dashboards) {
+      const entry = option(dashboard.id, `${dashboard.title} · ${dashboard.status}`, dashboard.id === state.dashboard?.id);
+      compatible.append(entry);
+      population.append(entry.cloneNode(true));
+    }
+    $("#open-compatible-dashboard").disabled = !state.dashboards.length;
+    renderDashboardContext();
     renderCandidatePolicy();
     renderSummary();
     const title = rules.imported ? "Existing classifier imported" : rules.seeded ? "Starter catalogue ready" : "Catalogue loaded";
@@ -672,7 +734,7 @@ async function initialise() {
       : rules.seeded
         ? "Review the seeded SmartFamilyOps rules before the first publish."
         : `Loaded revision ${rules.revision}.`;
-    status(state.publicationRequired ? "waiting" : "ok", state.publicationRequired ? "Catalogue publication required" : title, state.publicationRequired ? "Publish once to create this version's managed device catalogue." : detail);
+    status(state.publicationRequired ? "waiting" : "ok", state.publicationRequired ? "Dashboard catalogue publication required" : title, state.publicationRequired ? "Publish once to create independent device catalogues for each compatible dashboard." : detail);
     await discover();
   } catch (error) {
     status("error", "Builder could not start", error.message);
@@ -687,13 +749,22 @@ $("#add-condition").addEventListener("click", () => {
   renderEditor();
 });
 $("#candidate-match").addEventListener("change", (event) => {
-  ensurePopulationPolicy(state.catalogue).match = event.target.value;
+  populationPolicy().match = event.target.value;
   markDirty();
 });
 $("#add-candidate-condition").addEventListener("click", () => {
-  ensurePopulationPolicy(state.catalogue).conditions.push({ field: "entity_device_class", operator: "equals", value: "" });
+  populationPolicy().conditions.push({ field: "entity_device_class", operator: "equals", value: "" });
   markDirty();
   renderCandidatePolicy();
+});
+$("#population-dashboard").addEventListener("change", (event) => {
+  state.dashboard = state.dashboards.find((dashboard) => dashboard.id === event.target.value) ?? null;
+  $("#compatible-dashboard").value = event.target.value;
+  state.previewPage = 1;
+  renderDashboardContext();
+  renderCandidatePolicy();
+  renderPreview();
+  renderSummary();
 });
 $("#move-up").addEventListener("click", () => moveSelected(-1));
 $("#move-down").addEventListener("click", () => moveSelected(1));

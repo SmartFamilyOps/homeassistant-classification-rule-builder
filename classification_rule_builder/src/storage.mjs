@@ -47,7 +47,13 @@ export async function publicationRequired() {
     readOptional(deviceCataloguePath),
     readOptional(deviceTemplatePath),
   ]);
-  return !deviceCatalogue || !deviceTemplate;
+  if (!deviceCatalogue || !deviceTemplate) return true;
+  try {
+    return JSON.parse(deviceCatalogue).version !== 2
+      || !deviceTemplate.includes("macro dashboard_devices(dashboard_id, returns)");
+  } catch {
+    return true;
+  }
 }
 
 async function atomicWrite(file, content) {

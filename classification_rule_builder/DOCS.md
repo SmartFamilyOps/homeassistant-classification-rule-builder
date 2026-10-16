@@ -4,7 +4,7 @@ Use the **Web UI** tab to maintain deterministic device-classification rules wit
 
 Use the **Classification Rules** tab to maintain the shared catalogue. The **Dashboard Builder** tab is the configuration home for reusable discovery dashboards that consume the same catalogue.
 
-The **Battery Health discovery scope** panel above the rules is an editable dashboard-population policy. Add or remove candidate conditions, select the evidence field, comparison and value, and choose whether any or all conditions must match. The shipped defaults accept an entity with registered or runtime `device_class = battery`, or a registered entity ID containing `battery`. Ordered rules, duplicate handling and the `battery_monitor` / `battery_ignore` labels then determine final membership.
+The discovery-scope panel above the rules is an editable, dashboard-specific population policy. Use **Currently editing** to select the dashboard and verify its route. Add or remove candidate conditions, select the evidence field, comparison and value, and choose whether any or all conditions must match. The shipped Battery Health defaults accept an entity with registered or runtime `device_class = battery`, or a registered entity ID containing `battery`. Ordered shared rules, duplicate handling and the `battery_monitor` / `battery_ignore` labels then determine final membership.
 
 These tabs are inside **Open Web UI** and the app's sidebar page. They do not replace Home Assistant's fixed **Info**, **Documentation**, **Configuration** and **Log** app-management tabs.
 
@@ -29,6 +29,6 @@ The Battery Health **Edit Device** icon opens the matching native Home Assistant
 
 The app reads Home Assistant's device, entity and area registries. Disabled registered entities are included as classification and automatic-candidate evidence without enabling them. Candidate edits participate in preview, validation, publication, backup and rollback with the rest of the catalogue.
 
-The reusable classifier and local device catalogue are deliberately separate. The classifier is portable SmartFamilyOps logic. The device catalogue contains installation-specific IDs and evaluated dashboard membership. Users manage both through this app; neither generated Jinja file should be edited manually.
+The reusable classifier and local device catalogue are deliberately separate. The classifier is portable SmartFamilyOps logic. The aggregate device catalogue contains installation-specific IDs and a separate evaluated membership list for every compatible dashboard. **Save as new dashboard** copies the source policy; later policy edits remain isolated. Users manage both through this app; neither generated Jinja file should be edited manually.
 
 See the project README for the dashboard input contract and recovery procedure.

@@ -3,10 +3,10 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createDashboard, deleteDashboard, discoverDevices, listDashboards, loadDashboardConfig, reloadCustomTemplates, saveDashboardConfig, updateDashboard, validateTemplate } from "./home-assistant.mjs";
-import { BATTERY_HEALTH_DASHBOARD, batteryHealthConfig, findBatteryHealthDashboard, findLegacyBatteryHealthDashboard, migrateBatteryHealthConfig, upgradeManagedBatteryHealthCard, validDashboardPath } from "./dashboard.mjs";
-import { batteryHealthDefinition, cloneDashboardConfig, isCompatibleDashboardConfig, newDashboardDefinition, readDashboardDefinitions, saveDashboardDefinition } from "./dashboard-definitions.mjs";
-import { buildDeviceCatalogue, generateDeviceCatalogueJinja } from "./device-catalogue.mjs";
-import { catalogueRevision, classifyDevice, FIELD_DEFINITIONS, generateJinja, OPERATORS, validateCatalogue } from "./rules.mjs";
+import { BATTERY_HEALTH_DASHBOARD, batteryHealthConfig, findBatteryHealthDashboard, findLegacyBatteryHealthDashboard, migrateBatteryHealthConfig, retargetManagedDashboardCard, upgradeManagedBatteryHealthCard, validDashboardPath } from "./dashboard.mjs";
+import { batteryHealthDefinition, cloneDashboardConfig, isCompatibleDashboardConfig, newDashboardDefinition, readDashboardDefinitions, restoreDashboardDefinitionSet, saveDashboardDefinition, saveDashboardDefinitionSet } from "./dashboard-definitions.mjs";
+import { buildDashboardDeviceCatalogues, generateDashboardDeviceCataloguesJinja } from "./device-catalogue.mjs";
+import { automaticCandidatePolicy, catalogueRevision, classifyDevice, FIELD_DEFINITIONS, generateJinja, OPERATORS, validateAutomaticCandidatePolicy, validateCatalogue } from "./rules.mjs";
 import { pathsForStatus, pruneBackups, publicationRequired, readCatalogue, restoreFiles, saveFiles } from "./storage.mjs";
 
 const publicDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../public");
@@ -104,11 +104,31 @@ async function provisionDashboard({ alignExisting = false } = {}) {
 async function compatibleDashboardDefinitions() {
   const dashboards = await listDashboards();
   const canonical = findBatteryHealthDashboard(dashboards);
-  const stored = await readDashboardDefinitions();
+  const { catalogue } = await readCatalogue();
+  const defaultPolicy = structuredClone(automaticCandidatePolicy(catalogue));
+  const stored = (await readDashboardDefinitions()).map((definition) => ({
+    ...definition,
+    population_policy: structuredClone(definition.population_policy ?? defaultPolicy),
+  }));
   const definitions = new Map(stored.map((definition) => [definition.id, definition]));
-  if (canonical && !definitions.has("battery-health")) definitions.set("battery-health", batteryHealthDefinition(canonical));
+  if (canonical && !definitions.has("battery-health")) definitions.set("battery-health", batteryHealthDefinition(canonical, defaultPolicy));
   return [...definitions.values()].filter((definition) => dashboards.some((dashboard) => dashboard.url_path === definition.url_path))
     .map((definition) => ({ ...definition, dashboard: dashboards.find((dashboard) => dashboard.url_path === definition.url_path), url: `/${definition.url_path}/${definition.view_path}` }));
+}
+
+function applyDashboardPolicies(definitions, policies = []) {
+  const byId = new Map(policies.map((entry) => [entry.id, entry.population_policy]));
+  return definitions.map((definition) => ({
+    ...definition,
+    population_policy: structuredClone(byId.get(definition.id) ?? definition.population_policy),
+    updated_at: byId.has(definition.id) ? new Date().toISOString() : definition.updated_at,
+  }));
+}
+
+function dashboardPolicyErrors(definitions) {
+  return definitions.flatMap((definition) =>
+    validateAutomaticCandidatePolicy(definition.population_policy, `dashboards[${definition.id}].population_policy`),
+  );
 }
 
 async function saveAsDashboard(payload) {
@@ -121,7 +141,8 @@ async function saveAsDashboard(payload) {
     throw Object.assign(new Error("The source dashboard no longer carries the SmartFamilyOps compatibility marker."), { status: 409 });
   }
   const definition = newDashboardDefinition(source, payload, dashboards.map((dashboard) => dashboard.url_path));
-  const config = cloneDashboardConfig(sourceConfig, definition);
+  const cloned = cloneDashboardConfig(sourceConfig, definition);
+  const config = retargetManagedDashboardCard(cloned, definition.id).config;
   const created = await createDashboard({
     title: definition.title, icon: definition.icon, url_path: definition.url_path,
     show_in_sidebar: definition.show_in_sidebar, require_admin: definition.require_admin,
@@ -194,17 +215,19 @@ async function handle(request, response) {
   }
   if (request.method === "POST" && url.pathname.endsWith("/api/validate")) {
     const payload = await body(request);
-    const errors = validateCatalogue(payload.catalogue);
+    const definitions = applyDashboardPolicies(await compatibleDashboardDefinitions(), payload.dashboard_policies);
+    const errors = [...validateCatalogue(payload.catalogue), ...dashboardPolicyErrors(definitions)];
     if (errors.length) return json(response, 422, { valid: false, errors });
     const template = generateJinja(payload.catalogue);
     await validateTemplate(template);
     const devices = Array.isArray(payload.devices) ? payload.devices : [];
-    const deviceCatalogue = buildDeviceCatalogue(payload.catalogue, devices);
-    await validateTemplate(generateDeviceCatalogueJinja(deviceCatalogue));
+    const deviceCatalogue = buildDashboardDeviceCatalogues(payload.catalogue, devices, definitions);
+    await validateTemplate(generateDashboardDeviceCataloguesJinja(deviceCatalogue));
     return json(response, 200, {
       valid: true,
       revision: catalogueRevision(payload.catalogue),
-      device_count: deviceCatalogue.devices.length,
+      device_count: deviceCatalogue.dashboards.reduce((total, dashboard) => total + dashboard.devices.length, 0),
+      dashboards: deviceCatalogue.dashboards.map((dashboard) => ({ id: dashboard.dashboard_id, device_count: dashboard.devices.length })),
       preview: devices.map((device) => ({ device_id: device.id, ...classifyDevice(payload.catalogue, device) })),
     });
   }
@@ -212,30 +235,49 @@ async function handle(request, response) {
     const payload = await body(request);
     const current = await readCatalogue();
     if (payload.base_revision !== current.revision) return json(response, 409, { error: "Rules changed since this page loaded. Reload before saving." });
-    const errors = validateCatalogue(payload.catalogue);
+    const definitions = applyDashboardPolicies(await compatibleDashboardDefinitions(), payload.dashboard_policies);
+    const errors = [...validateCatalogue(payload.catalogue), ...dashboardPolicyErrors(definitions)];
     if (errors.length) return json(response, 422, { error: "Rule validation failed.", errors });
     const template = generateJinja(payload.catalogue);
     await validateTemplate(template);
     const devices = await discoverDevices();
-    const deviceCatalogue = buildDeviceCatalogue(payload.catalogue, devices);
-    const deviceTemplate = generateDeviceCatalogueJinja(deviceCatalogue);
+    const deviceCatalogue = buildDashboardDeviceCatalogues(payload.catalogue, devices, definitions);
+    const deviceTemplate = generateDashboardDeviceCataloguesJinja(deviceCatalogue);
     await validateTemplate(deviceTemplate);
+    const dashboardConfigs = [];
+    for (const definition of definitions) {
+      const original = await loadDashboardConfig(definition.url_path);
+      const retargeted = retargetManagedDashboardCard(original, definition.id);
+      if (!retargeted.managed) {
+        throw Object.assign(new Error(`Dashboard “${definition.title}” no longer contains a managed SmartFamilyOps discovery card.`), { status: 409 });
+      }
+      dashboardConfigs.push({ definition, original, updated: retargeted.config });
+    }
     const previous = await saveFiles(payload.catalogue, template, deviceCatalogue, deviceTemplate);
+    let previousDefinitions = new Map();
     try {
+      previousDefinitions = await saveDashboardDefinitionSet(definitions);
+      for (const dashboard of dashboardConfigs) await saveDashboardConfig(dashboard.definition.url_path, dashboard.updated);
       await reloadCustomTemplates();
     } catch (error) {
       await restoreFiles(previous);
+      await restoreDashboardDefinitionSet(previousDefinitions);
+      for (const dashboard of dashboardConfigs) {
+        try { await saveDashboardConfig(dashboard.definition.url_path, dashboard.original); } catch {}
+      }
       try { await reloadCustomTemplates(); } catch {}
       throw new Error(`Home Assistant rejected the published template; the previous files were restored. ${error.message}`);
     }
-    let dashboardCardUpgraded = false;
-    try {
-      dashboardCardUpgraded = await upgradeDashboardCardIfManaged();
-    } catch (error) {
-      console.error(`[builder] Published catalogues but could not upgrade the managed Battery Health card: ${error.message}`);
-    }
+    const dashboardCardUpgraded = dashboardConfigs.length > 0;
     await pruneBackups();
-    return json(response, 200, { saved: true, revision: catalogueRevision(payload.catalogue), device_count: deviceCatalogue.devices.length, reloaded: true, dashboard_card_upgraded: dashboardCardUpgraded });
+    return json(response, 200, {
+      saved: true,
+      revision: catalogueRevision(payload.catalogue),
+      device_count: deviceCatalogue.dashboards.reduce((total, dashboard) => total + dashboard.devices.length, 0),
+      dashboards: deviceCatalogue.dashboards.map((dashboard) => ({ id: dashboard.dashboard_id, device_count: dashboard.devices.length })),
+      reloaded: true,
+      dashboard_card_upgraded: dashboardCardUpgraded,
+    });
   }
   return json(response, 404, { error: "Not found." });
 }

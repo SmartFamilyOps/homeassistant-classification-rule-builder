@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { batteryHealthIncluded, buildDeviceCatalogue, generateDeviceCatalogueJinja, validateDeviceCatalogue } from "../src/device-catalogue.mjs";
+import { batteryHealthIncluded, buildDashboardDeviceCatalogues, buildDeviceCatalogue, generateDashboardDeviceCataloguesJinja, generateDeviceCatalogueJinja, validateDeviceCatalogue } from "../src/device-catalogue.mjs";
 import { seedCatalogue } from "../src/rules.mjs";
 
 const device = (overrides = {}) => ({
@@ -78,4 +78,23 @@ test("generated catalogue Jinja preserves offline devices and stable registry id
   assert.match(output, /device-1/);
   assert.match(output, /sensor\.example_battery/);
   assert.match(output, /Do not edit by hand/);
+});
+
+test("compatible dashboards publish independent device populations in one template", () => {
+  const catalogue = seedCatalogue();
+  const devices = [
+    device({ id: "battery", name: "Battery", entity_device_classes: ["battery"] }),
+    device({ id: "camera", name: "Camera", manufacturer: "Reolink" }),
+  ];
+  const dashboards = [
+    { id: "battery-health", title: "Battery Health", population_policy: catalogue.dashboard_population.automatic_candidates },
+    { id: "cameras", title: "Cameras", population_policy: { match: "all", conditions: [{ field: "manufacturer", operator: "equals", value: "Reolink" }] } },
+  ];
+  const built = buildDashboardDeviceCatalogues(catalogue, devices, dashboards);
+  assert.deepEqual(built.dashboards[0].devices.map((entry) => entry.device_id), ["battery"]);
+  assert.deepEqual(built.dashboards[1].devices.map((entry) => entry.device_id), ["camera"]);
+  const output = generateDashboardDeviceCataloguesJinja(built);
+  assert.match(output, /macro dashboard_devices\(dashboard_id, returns\)/);
+  assert.match(output, /dashboard_id == "battery-health"/);
+  assert.match(output, /dashboard_id == "cameras"/);
 });

@@ -53,7 +53,7 @@ test("the app exposes discovery, Apps navigation and interface-reload controls",
   assert.doesNotMatch(html, /Check for app updates/);
   assert.doesNotMatch(script, /app-update-check/);
   assert.match(script, /publicationRequired/);
-  assert.match(script, /Catalogue publication required/);
+  assert.match(script, /Dashboard catalogue publication required/);
   assert.match(script, /!state\.dirty && !state\.publicationRequired/);
 });
 
@@ -89,6 +89,9 @@ test("the rules workspace exposes the complete Battery Health membership policy"
   assert.match(html, /id="candidate-match"/);
   assert.match(html, /id="candidate-conditions"/);
   assert.match(html, /id="add-candidate-condition"/);
+  assert.match(html, /id="population-dashboard"/);
+  assert.match(html, /Currently editing/);
+  assert.match(html, /Independent policy/);
   assert.match(script, /entity_device_class/);
   assert.match(script, /automaticCandidateMatches/);
   assert.match(html, /battery_monitor/);

@@ -33,6 +33,29 @@ export function batteryHealthConfig(content) {
   };
 }
 
+export function retargetManagedDashboardCard(config, definitionId) {
+  const updated = structuredClone(config);
+  let changed = false;
+  let managed = false;
+  const selectorPattern = /{% from 'smartfamilyops_device_catalogue\.jinja' import (?:battery_health_devices|dashboard_devices) -%}\r?\n{% set (?:battery_health_devices_fn|dashboard_devices_fn) = (?:battery_health_devices|dashboard_devices) \| as_function -%}\r?\n{% set catalogued_devices = (?:battery_health_devices_fn\(\)|dashboard_devices_fn\('[^']+'\)) -%}/;
+  for (const view of (updated.views ?? [])) {
+    for (const card of (view.cards ?? [])) {
+      if (card.type !== "markdown" || typeof card.content !== "string") continue;
+      const isManagedCard = card.content.includes("SmartFamilyOps managed Battery Health card")
+        || card.content.includes("smartfamilyops_device_catalogue.jinja");
+      if (!isManagedCard) continue;
+      const replacement = `{% from 'smartfamilyops_device_catalogue.jinja' import dashboard_devices -%}\n{% set dashboard_devices_fn = dashboard_devices | as_function -%}\n{% set catalogued_devices = dashboard_devices_fn('${definitionId}') -%}`;
+      if (!selectorPattern.test(card.content)) continue;
+      managed = true;
+      const next = card.content.replace(selectorPattern, replacement);
+      changed ||= next !== card.content;
+      card.content = next;
+    }
+  }
+  if (managed) updated.smartfamilyops_dashboard = { schema_version: 1, owner: "SmartFamilyOps Discovery Dashboard Builder", definition_id: definitionId };
+  return { config: updated, changed, managed };
+}
+
 export function findBatteryHealthDashboard(dashboards) {
   return dashboards.find((dashboard) => dashboard.url_path === BATTERY_HEALTH_DASHBOARD.url_path) ?? null;
 }
@@ -63,7 +86,7 @@ export function upgradeManagedBatteryHealthCard(config, content) {
           && card.content.includes("for s in states.sensor"))
         || (card.content.includes("Battery & Power Observability")
           && card.content.includes("smartfamilyops_device_catalogue.jinja")
-          && card.content.includes("battery_health_devices"));
+          && (card.content.includes("battery_health_devices") || card.content.includes("dashboard_devices")));
       if (!isManagedCard) continue;
       card.content = content;
       changed = true;

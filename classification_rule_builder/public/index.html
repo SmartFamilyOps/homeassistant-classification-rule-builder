@@ -57,11 +57,17 @@
       <div class="membership-policy-heading">
         <div>
           <p class="eyebrow">Dashboard population</p>
-          <h2 id="battery-health-scope-title">Battery Health discovery scope</h2>
+          <h2 id="battery-health-scope-title"><span id="scope-dashboard-title">Dashboard</span> discovery scope</h2>
         </div>
-        <span class="policy-badge">Editable policy</span>
+        <div class="dashboard-context">
+          <span class="policy-badge">Independent policy</span>
+          <label>Currently editing
+            <select id="population-dashboard" aria-label="Dashboard whose population policy is being edited"></select>
+          </label>
+          <small id="population-dashboard-route"></small>
+        </div>
       </div>
-      <p class="membership-intro">This policy decides which discovered devices enter Battery Health. The ordered rules below classify devices and can explicitly include or exclude them.</p>
+      <p class="membership-intro">This policy decides which discovered devices enter the selected dashboard. Classification rules remain shared; automatic candidates are saved independently for each compatible dashboard.</p>
       <div class="membership-flow">
         <article class="candidate-policy-editor">
           <div class="candidate-policy-heading">
@@ -231,11 +237,11 @@
 
   <dialog id="confirm-dialog">
     <form method="dialog">
-      <p class="eyebrow">Publish checked rules</p>
-      <h2>Apply this catalogue?</h2>
+      <p class="eyebrow">Publish checked configuration</p>
+      <h2>Apply these dashboard catalogues?</h2>
       <p id="confirm-copy">The generated Jinja will replace the managed classifier and custom templates will reload.</p>
       <div id="validation-errors" class="errors" hidden></div>
-      <div class="dialog-actions"><button value="cancel" class="secondary">Cancel</button><button id="confirm-save" value="default">Publish rules</button></div>
+      <div class="dialog-actions"><button value="cancel" class="secondary">Cancel</button><button id="confirm-save" value="default">Publish dashboards</button></div>
     </form>
   </dialog>
 

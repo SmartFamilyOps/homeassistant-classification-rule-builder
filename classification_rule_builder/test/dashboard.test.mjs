@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { BATTERY_HEALTH_DASHBOARD, batteryHealthConfig, findBatteryHealthDashboard, findLegacyBatteryHealthDashboard, migrateBatteryHealthConfig, upgradeManagedBatteryHealthCard, validDashboardPath } from "../src/dashboard.mjs";
+import { BATTERY_HEALTH_DASHBOARD, batteryHealthConfig, findBatteryHealthDashboard, findLegacyBatteryHealthDashboard, migrateBatteryHealthConfig, retargetManagedDashboardCard, upgradeManagedBatteryHealthCard, validDashboardPath } from "../src/dashboard.mjs";
 import { cloneDashboardConfig, dashboardSlug, isCompatibleDashboardConfig, newDashboardDefinition } from "../src/dashboard-definitions.mjs";
 
 test("Battery Health ships Home Assistant-compatible SmartFamilyOps defaults", () => {
@@ -88,7 +88,7 @@ test("Dashboard Builder exposes explicit provisioning and the shipped defaults",
 });
 
 test("Save as new dashboard creates a distinct governed draft identity", () => {
-  const source = { id: "battery-health", title: "Battery Health", icon: "mdi:battery-sync" };
+  const source = { id: "battery-health", title: "Battery Health", icon: "mdi:battery-sync", population_policy: { match: "any", conditions: [{ field: "entity_id", operator: "contains", value: "battery" }] } };
   const draft = newDashboardDefinition(source, { title: "Copy of Battery Health", slug: "battery-health-copy" }, ["smartfamilyops-dashboards-battery-health-copy"]);
   assert.equal(draft.url_path, "smartfamilyops-dashboards-battery-health-copy-2");
   assert.equal(draft.view_path, "battery-health-copy");
@@ -96,6 +96,8 @@ test("Save as new dashboard creates a distinct governed draft identity", () => {
   assert.equal(draft.show_in_sidebar, false);
   assert.equal(draft.require_admin, true);
   assert.equal(dashboardSlug("  Garden Cameras! "), "garden-cameras");
+  assert.deepEqual(draft.population_policy, source.population_policy);
+  assert.notEqual(draft.population_policy, source.population_policy);
 });
 
 test("dashboard cloning preserves presentation while replacing identity", () => {
@@ -107,4 +109,12 @@ test("dashboard cloning preserves presentation while replacing identity", () => 
   assert.deepEqual(clone.views[0].cards, source.views[0].cards);
   assert.equal(isCompatibleDashboardConfig(clone, definition.id), true);
   assert.equal(source.views[0].title, "Battery Health");
+});
+
+test("managed cards are retargeted to the dashboard definition identity", () => {
+  const content = "{# SmartFamilyOps managed Battery Health card #}\n{% from 'smartfamilyops_device_catalogue.jinja' import battery_health_devices -%}\n{% set battery_health_devices_fn = battery_health_devices | as_function -%}\n{% set catalogued_devices = battery_health_devices_fn() -%}";
+  const result = retargetManagedDashboardCard({ views: [{ cards: [{ type: "markdown", content }] }] }, "garden-power");
+  assert.equal(result.changed, true);
+  assert.match(result.config.views[0].cards[0].content, /import dashboard_devices/);
+  assert.match(result.config.views[0].cards[0].content, /dashboard_devices_fn\('garden-power'\)/);
 });

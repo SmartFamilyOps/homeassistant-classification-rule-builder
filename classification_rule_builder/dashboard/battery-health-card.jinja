@@ -3,9 +3,9 @@
 _Protected device telemetry • power-source discovery • Splunk test catalogue_
 
 {# SmartFamilyOps managed Battery Health card #}
-{% from 'smartfamilyops_device_catalogue.jinja' import battery_health_devices -%}
-{% set battery_health_devices_fn = battery_health_devices | as_function -%}
-{% set catalogued_devices = battery_health_devices_fn() -%}
+{% from 'smartfamilyops_device_catalogue.jinja' import dashboard_devices -%}
+{% set dashboard_devices_fn = dashboard_devices | as_function -%}
+{% set catalogued_devices = dashboard_devices_fn('battery-health') -%}
 
 {# PRESENTATION: membership and classification were evaluated when the catalogue was published. #}
 {% set batteries = namespace(items=[]) -%}

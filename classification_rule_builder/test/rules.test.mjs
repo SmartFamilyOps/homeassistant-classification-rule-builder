@@ -171,7 +171,8 @@ test("unknown legacy Jinja is refused instead of silently replaced", () => {
 
 test("Battery Health dashboard consumes the published device catalogue", async () => {
   const card = await readFile(new URL("../../examples/battery-health-dashboard/card.jinja", import.meta.url), "utf8");
-  assert.match(card, /from 'smartfamilyops_device_catalogue\.jinja' import battery_health_devices/);
+  assert.match(card, /from 'smartfamilyops_device_catalogue\.jinja' import dashboard_devices/);
+  assert.match(card, /dashboard_devices_fn\('battery-health'\)/);
   assert.match(card, /for d in catalogued_devices/);
   assert.doesNotMatch(card, /for s in states\.sensor/);
   assert.doesNotMatch(card, /classify_device/);

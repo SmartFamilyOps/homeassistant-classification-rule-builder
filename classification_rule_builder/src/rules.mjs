@@ -236,6 +236,18 @@ function validateCondition(condition, path, errors) {
   }
 }
 
+export function validateAutomaticCandidatePolicy(policy, path = "population_policy") {
+  const errors = [];
+  if (!policy || typeof policy !== "object") return [`${path} must be an object.`];
+  if (!["all", "any"].includes(policy.match)) errors.push(`${path}.match must be all or any.`);
+  if (!Array.isArray(policy.conditions) || policy.conditions.length === 0) {
+    errors.push(`${path}.conditions must contain at least one condition.`);
+  } else {
+    policy.conditions.forEach((condition, index) => validateCondition(condition, `${path}.conditions[${index}]`, errors));
+  }
+  return errors;
+}
+
 export function validateCatalogue(candidate) {
   const errors = [];
   if (!candidate || typeof candidate !== "object") return ["Catalogue must be an object."];
@@ -245,16 +257,7 @@ export function validateCatalogue(candidate) {
   if (!text(candidate.fallback?.reason)) errors.push("fallback.reason is required.");
 
   const policy = automaticCandidatePolicy(candidate);
-  if (!["all", "any"].includes(policy.match)) {
-    errors.push("dashboard_population.automatic_candidates.match must be all or any.");
-  }
-  if (!Array.isArray(policy.conditions) || policy.conditions.length === 0) {
-    errors.push("dashboard_population.automatic_candidates.conditions must contain at least one condition.");
-  } else {
-    policy.conditions.forEach((condition, index) =>
-      validateCondition(condition, `dashboard_population.automatic_candidates.conditions[${index}]`, errors),
-    );
-  }
+  errors.push(...validateAutomaticCandidatePolicy(policy, "dashboard_population.automatic_candidates"));
 
   const ids = new Set();
   const names = new Set();

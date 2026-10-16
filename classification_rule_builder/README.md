@@ -22,6 +22,8 @@ The app configuration is organised into two in-app sections:
 - Groups multiple Home Assistant records that represent one physical asset and marks primary or duplicate sources explicitly.
 - Makes Battery Health dashboard membership an explicit rule outcome: include, exclude, or automatic under an editable candidate policy.
 - Lets users maintain automatic candidate evidence with the same safe field, comparison and `all`/`any` controls used by classification rules.
+- Gives each compatible dashboard an independent automatic-candidate policy while retaining one shared classification rulebook.
+- Shows the selected dashboard and exact route above the population editor; opening a compatible dashboard selects that same context.
 - Shows the complete Battery Health population policy above the rule editor so automatic evidence and label overrides are governed rather than hidden in the compiler.
 - Recognises and imports the established SmartFamilyOps Jinja classifier on first run; an unfamiliar template is refused rather than overwritten.
 - Opens Home Assistant's installed-apps page for update checks and app management without granting this app elevated Supervisor permissions.
@@ -71,7 +73,7 @@ The files have different authority and change cycles:
 | File | Responsibility | Portability | Changes when |
 | --- | --- | --- | --- |
 | `smartfamilyops_device_classification.jinja` | Reusable ordered rules that classify one supplied device | Portable across Home Assistant installations | A classification rule is published |
-| `smartfamilyops_device_catalogue.jinja` | Evaluated membership and stable IDs for devices in this Home Assistant installation | Installation-specific | Discovery is refreshed and the catalogue is published |
+| `smartfamilyops_device_catalogue.jinja` | Evaluated membership and stable IDs, grouped by compatible dashboard definition ID | Installation-specific | Discovery or any dashboard population policy is refreshed and published |
 
 This separation prevents a routine device refresh from rewriting the decision engine. It also keeps local device IDs out of the portable SmartFamilyOps rule design. The dashboard performs presentation and live-state lookup only; it no longer contains the authoritative battery-device discovery filter.
 
@@ -99,7 +101,7 @@ Cloud** as the primary source and **Front Door Lock - Bluetooth Diagnostic** as
 a duplicate source for the `front-door-lock` logical asset.
 
 `battery_health` is one of `include`, `exclude` or `automatic`. Automatic
-membership evaluates the editable **Automatic candidates** policy. The shipped
+membership evaluates the selected dashboard's editable **Automatic candidates** policy. The shipped
 policy matches any entity whose device class equals `battery`, or any registered
 entity ID containing `battery`. Users can add, remove or replace those conditions
 and choose whether any or all must match. This keeps the default useful for new
@@ -115,22 +117,24 @@ compatibility. Monitor wins as an explicit inclusion; ignore removes an automati
 or rule-included device. These registry labels are evaluated during publication.
 
 The rules workspace displays and edits this membership precedence above the
-ordered rules. Candidate changes affect the browser preview immediately and are
-stored in `dashboard_population.automatic_candidates` in the source catalogue.
-They pass the same schema, Jinja compilation, backup, stale-save and rollback
+ordered rules. The **Currently editing** selector identifies the dashboard whose
+policy is shown and displays its exact route. **Open compatible dashboard** changes
+the same selection. **Save as new dashboard** clones the source policy into a new
+definition; subsequent edits affect only that definition. Candidate changes affect
+the browser preview immediately and pass the same schema, Jinja compilation, backup, stale-save and rollback
 controls as classification changes. Rule-level inclusion or exclusion and
 duplicate-source handling are then applied, while `battery_monitor` and
 `battery_ignore` remain explicit Home Assistant label overrides.
 
-The Battery Health dashboard imports `battery_health_devices` from the generated
-device catalogue. Each record contains stable device and entity IDs, registry
+Each compatible dashboard imports `dashboard_devices` from the generated device
+catalogue and supplies its own definition ID. Each record contains stable device and entity IDs, registry
 metadata, the evaluated function and membership evidence. The dashboard reads
 current states for those IDs when it renders, so offline devices stay listed and
 live battery values do not require republishing.
 
 The Battery Health **Edit Device** column opens `/config/devices/device/{device_id}`.
 
-The **Dashboard Builder** tab can open any compatible SmartFamilyOps dashboard and save it as a new governed draft. A draft receives a new UUID, a collision-safe `smartfamilyops-dashboards-*` route, a copied Lovelace configuration, an app-owned manifest, administrator-only access and no sidebar entry by default. Existing compatible dashboards can be renamed and have their description, icon, sidebar visibility and administrator access maintained from the same editor.
+The **Dashboard Builder** tab can open any compatible SmartFamilyOps dashboard and save it as a new governed draft. A draft receives a new UUID, a collision-safe `smartfamilyops-dashboards-*` route, a copied Lovelace configuration, a copied but independently editable population policy, an app-owned manifest, administrator-only access and no sidebar entry by default. Existing compatible dashboards can be renamed and have their description, icon, sidebar visibility and administrator access maintained from the same editor.
 This hands configuration back to Home Assistant's native device page and remains
 valid when a device is renamed because it uses the registry ID rather than the
 display name.
