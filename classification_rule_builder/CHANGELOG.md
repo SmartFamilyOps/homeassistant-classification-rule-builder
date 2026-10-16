@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.3
+
+- Strengthen the Rules and Rule Details relationship with a shared branded blue selection surface.
+- Give the Rules column a persistent blue treatment and clearer selected-rule elevation.
+- Apply SmartFamilyOps blue and teal tints to the catalogue summary cards.
+
 ## 0.4.2
 
 - Present device and entity totals with green active and red inactive breakdowns.
