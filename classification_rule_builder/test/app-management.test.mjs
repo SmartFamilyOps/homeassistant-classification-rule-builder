@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { summariseDeviceEntities } from "../src/home-assistant.mjs";
+import { deviceEntityEvidence, summariseDeviceEntities } from "../src/home-assistant.mjs";
 
 test("device entity summary counts enabled entities and requires one available state for online", () => {
   const entities = [
@@ -20,6 +20,25 @@ test("device entity summary counts enabled entities and requires one available s
   });
   states.set("sensor.example_temperature", { state: "unknown" });
   assert.equal(summariseDeviceEntities(entities, states).online, false);
+});
+
+test("device evidence chooses an enabled battery entity and retains offline status candidates", () => {
+  const entities = [
+    { entity_id: "sensor.example_battery_old", disabled_by: "integration", labels: [] },
+    { entity_id: "sensor.example_battery", disabled_by: null, labels: ["battery_monitor"] },
+    { entity_id: "button.example_restart", disabled_by: null, labels: [] },
+    { entity_id: "binary_sensor.example_motion", disabled_by: null, labels: [] },
+  ];
+  const states = new Map([
+    ["sensor.example_battery", { state: "unavailable", attributes: { device_class: "battery" } }],
+  ]);
+  assert.deepEqual(deviceEntityEvidence(entities, states), {
+    battery: true,
+    battery_entity_id: "sensor.example_battery",
+    battery_ignore: false,
+    battery_monitor: true,
+    relevant_entity_ids: ["sensor.example_battery", "binary_sensor.example_motion"],
+  });
 });
 
 test("the app exposes discovery, Apps navigation and interface-reload controls", async () => {
@@ -56,5 +75,6 @@ test("the container includes the maintained Battery Health dashboard source", as
   const example = await readFile(new URL("../../examples/battery-health-dashboard/card.jinja", import.meta.url), "utf8");
   assert.match(dockerfile, /COPY dashboard \/app\/dashboard/);
   assert.match(card, /Battery & Power Observability/);
+  assert.match(card, /smartfamilyops_device_catalogue\.jinja/);
   assert.equal(card, example, "the packaged dashboard and documented example must stay identical");
 });

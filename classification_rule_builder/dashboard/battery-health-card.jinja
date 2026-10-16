@@ -2,141 +2,85 @@
 ## Battery & Power Observability
 _Protected device telemetry • power-source discovery • Splunk test catalogue_
 
-{% from 'smartfamilyops_device_classification.jinja' import classify_device -%}
-{% set classify_device_fn = classify_device | as_function -%}
+{% from 'smartfamilyops_device_catalogue.jinja' import battery_health_devices -%}
+{% set battery_health_devices_fn = battery_health_devices | as_function -%}
+{% set catalogued_devices = battery_health_devices_fn() -%}
 
-{# DISCOVERY AND CLASSIFICATION: runtime data model #}
+{# PRESENTATION: membership and classification were evaluated when the catalogue was published. #}
 {% set batteries = namespace(items=[]) -%}
-{% for s in states.sensor -%}
-  {% set dc = s.attributes.get('device_class') -%}
-  {% set unit = s.attributes.get('unit_of_measurement') -%}
-  {% set label = (s.name ~ ' ' ~ s.entity_id) | lower -%}
-  {% if dc == 'battery' or (unit == '%' and 'battery' in label) -%}
-    {% set raw_level = s.state | lower -%}
-    {% set numeric_level = s.state | float(999) -%}
-    {% set level_valid = raw_level not in ['unknown','unavailable','none',''] and numeric_level >= 0 and numeric_level <= 100 -%}
-    {% set battery_display = ((numeric_level | round(0) | int) ~ '%') if level_valid else '' -%}
-    {% set sort_level = (numeric_level | round(0) | int) if level_valid else 999 -%}
-    {% if not level_valid -%}
-      {% set battery_icon = 'mdi:battery-unknown' -%}
-    {% elif numeric_level < 10 -%}
-      {% set battery_icon = 'mdi:battery-outline' -%}
-    {% elif numeric_level < 20 -%}
-      {% set battery_icon = 'mdi:battery-10' -%}
-    {% elif numeric_level < 30 -%}
-      {% set battery_icon = 'mdi:battery-20' -%}
-    {% elif numeric_level < 40 -%}
-      {% set battery_icon = 'mdi:battery-30' -%}
-    {% elif numeric_level < 50 -%}
-      {% set battery_icon = 'mdi:battery-40' -%}
-    {% elif numeric_level < 60 -%}
-      {% set battery_icon = 'mdi:battery-50' -%}
-    {% elif numeric_level < 70 -%}
-      {% set battery_icon = 'mdi:battery-60' -%}
-    {% elif numeric_level < 80 -%}
-      {% set battery_icon = 'mdi:battery-70' -%}
-    {% elif numeric_level < 90 -%}
-      {% set battery_icon = 'mdi:battery-80' -%}
-    {% elif numeric_level < 100 -%}
-      {% set battery_icon = 'mdi:battery-90' -%}
-    {% else -%}
-      {% set battery_icon = 'mdi:battery' -%}
-    {% endif -%}
-      {% set name = device_name(s.entity_id) or s.name -%}
-      {% set area = area_name(s.entity_id) or 'Unassigned' -%}
-      {% set manufacturer = device_attr(device_id(s.entity_id), 'manufacturer') or 'Unknown' -%}
-      {% set p = namespace(charging='Unknown', wired='Unknown', mode='Unknown', battery_temperature='Unknown', camera=false, camera_signals=[], entity_names=[], entity_ids=[], switch_position_count=0, has_switch_position_1=false, has_switch_position_2=false, has_switch_position_9=false, has_radar_triggered_distance=false, has_humidity=false, evidence=[], relevant_total=0, available_count=0, unavailable_count=0) -%}
-      {% for e in device_entities(device_id(s.entity_id)) -%}
-        {# Registry-presence checks also see entities disabled by their integration. #}
-        {% set entity_key = e | lower -%}
-        {% set p.entity_ids = p.entity_ids + [entity_key] -%}
-        {% set p.entity_names = p.entity_names + [entity_key.split('.')[-1] | replace('_', ' ')] -%}
-        {% if '_radar_triggered_distance' in entity_key -%}
-          {% set p.has_radar_triggered_distance = true -%}
-        {% endif -%}
-        {% if entity_key.split('.')[-1].split('_')[-1] == 'humidity' -%}
-          {% set p.has_humidity = true -%}
-        {% endif -%}
-        {% if '_current_switch_position_' in entity_key -%}
-          {% set p.switch_position_count = p.switch_position_count + 1 -%}
-          {% if '_current_switch_position_1' in entity_key %}{% set p.has_switch_position_1 = true %}{% endif -%}
-          {% if '_current_switch_position_2' in entity_key %}{% set p.has_switch_position_2 = true %}{% endif -%}
-          {% if '_current_switch_position_9' in entity_key %}{% set p.has_switch_position_9 = true %}{% endif -%}
-        {% endif -%}
-        {% set es = states[e] -%}
-        {% if es is not none -%}
-          {% set p.entity_names = p.entity_names + [es.name | lower] -%}
-          {% set domain = e.split('.')[0] -%}
-          {# Exclude configuration-only entities which can remain available when the physical device is offline. #}
-          {% if domain not in ['button','number','select','update','scene','automation'] -%}
-            {% set p.relevant_total = p.relevant_total + 1 -%}
-            {% if es.state | lower in ['unknown','unavailable','none',''] -%}
-              {% set p.unavailable_count = p.unavailable_count + 1 -%}
-            {% else -%}
-              {% set p.available_count = p.available_count + 1 -%}
-            {% endif -%}
-          {% endif -%}
-          {% set hint = (es.name ~ ' ' ~ e ~ ' ' ~ es.state) | lower -%}
-          {% if 'person' in hint or 'vehicle' in hint or 'animal' in hint or 'snapshot' in hint or 'record' in hint or 'stream' in hint or 'privacy mode' in hint or 'pir' in hint %}{% set p.camera = true %}{% set p.camera_signals = p.camera_signals + [es.name] %}{% endif -%}
-          {% if 'battery temperature' in hint and es.state | lower not in ['unknown','unavailable','none',''] -%}
-            {% set p.battery_temperature = es.state ~ (es.attributes.get('unit_of_measurement') or '') -%}
-          {% endif -%}
-          {% if 'charg' in hint or 'power' in hint or 'plug' in hint or 'wired' in hint or 'mains' in hint or 'ac ' in hint or 'usb' in hint -%}
-            {% set p.evidence = p.evidence + [es.name ~ ': ' ~ es.state] -%}
-            {% if 'charg' in hint and es.state | lower in ['on','true','charging'] %}{% set p.charging = 'Yes' %}{% set p.mode = 'Charging' %}{% endif -%}
-            {% if 'charg' in hint and es.state | lower in ['off','false','not charging'] %}{% set p.charging = 'No' %}{% endif -%}
-            {% if ('wired' in hint or 'mains' in hint or 'plug' in hint or 'usb' in hint or 'ac ' in hint) and es.state | lower not in ['off','false','unknown','unavailable'] %}{% set p.wired = 'Likely' %}{% set p.mode = 'External power' %}{% endif -%}
-            {% if 'discharg' in hint %}{% set p.mode = 'Battery' %}{% endif -%}
-          {% endif -%}
-        {% endif -%}
-      {% endfor -%}
-      {% if p.available_count > 0 -%}
-        {% set ha_status = 'Online' -%}
-        {% set ha_status_display = '✅' -%}
-      {% else -%}
-        {% set ha_status = 'Offline' -%}
-        {% set ha_status_display = '❌' -%}
-      {% endif -%}
-      {% set availability_evidence = p.available_count ~ ' available / ' ~ p.unavailable_count ~ ' unavailable' -%}
-      {# Function classification is maintained in /config/custom_templates. #}
-      {% set classification_result = classify_device_fn({
-        'name': name,
-        'manufacturer': manufacturer,
-        'area': area,
-        'label': label,
-        'entity_names': p.entity_names,
-        'entity_ids': p.entity_ids,
-        'camera_evidence': p.camera,
-        'has_switch_position_1': p.has_switch_position_1,
-        'has_switch_position_2': p.has_switch_position_2,
-        'has_switch_position_9': p.has_switch_position_9,
-        'has_radar_triggered_distance': p.has_radar_triggered_distance,
-        'has_humidity': p.has_humidity,
-        'switch_position_count': p.switch_position_count,
-        'camera': p.camera,
-        'camera_signals': p.camera_signals
-      }) -%}
-      {% set function = classification_result.function -%}
-      {% set classification = classification_result.reason -%}
-      {% set battery_health = classification_result.battery_health | default('automatic') -%}
-      {% set source_role = classification_result.source_role | default('standalone') -%}
-      {% set ignored = s.entity_id in label_entities('battery_ignore') -%}
-      {% set monitored = s.entity_id in label_entities('battery_monitor') -%}
-      {# Catalogue policy owns membership. battery_monitor is an explicit manual override. #}
-      {% set catalogue_included = battery_health != 'exclude' and source_role != 'duplicate' -%}
-      {% if (catalogue_included and not ignored) or monitored -%}
-        {% set batteries.items = batteries.items + [{'entity_id': s.entity_id, 'name': name, 'area': area, 'manufacturer': manufacturer, 'function': function, 'classification': classification, 'level': battery_display, 'sort_level': sort_level, 'battery_icon': battery_icon, 'ha_status': ha_status, 'ha_status_display': ha_status_display, 'availability_evidence': availability_evidence, 'charging': p.charging, 'wired': p.wired, 'mode': p.mode, 'battery_temperature': p.battery_temperature, 'evidence': p.evidence | join('; ')}] -%}
-    {% endif -%}
+{% for d in catalogued_devices -%}
+  {% set battery_state = states[d.battery_entity_id] if d.battery_entity_id else none -%}
+  {% set raw_level = (battery_state.state | lower) if battery_state is not none else '' -%}
+  {% set numeric_level = (battery_state.state | float(999)) if battery_state is not none else 999 -%}
+  {% set level_valid = raw_level not in ['unknown','unavailable','none',''] and numeric_level >= 0 and numeric_level <= 100 -%}
+  {% set battery_display = ((numeric_level | round(0) | int) ~ '%') if level_valid else '' -%}
+  {% set sort_level = (numeric_level | round(0) | int) if level_valid else 999 -%}
+  {% if not level_valid -%}
+    {% set battery_icon = 'mdi:battery-unknown' -%}
+  {% elif numeric_level < 10 -%}
+    {% set battery_icon = 'mdi:battery-outline' -%}
+  {% elif numeric_level < 20 -%}
+    {% set battery_icon = 'mdi:battery-10' -%}
+  {% elif numeric_level < 30 -%}
+    {% set battery_icon = 'mdi:battery-20' -%}
+  {% elif numeric_level < 40 -%}
+    {% set battery_icon = 'mdi:battery-30' -%}
+  {% elif numeric_level < 50 -%}
+    {% set battery_icon = 'mdi:battery-40' -%}
+  {% elif numeric_level < 60 -%}
+    {% set battery_icon = 'mdi:battery-50' -%}
+  {% elif numeric_level < 70 -%}
+    {% set battery_icon = 'mdi:battery-60' -%}
+  {% elif numeric_level < 80 -%}
+    {% set battery_icon = 'mdi:battery-70' -%}
+  {% elif numeric_level < 90 -%}
+    {% set battery_icon = 'mdi:battery-80' -%}
+  {% elif numeric_level < 100 -%}
+    {% set battery_icon = 'mdi:battery-90' -%}
+  {% else -%}
+    {% set battery_icon = 'mdi:battery' -%}
   {% endif -%}
+
+  {% set p = namespace(charging='Unknown', wired='Unknown', mode='Unknown', battery_temperature='Unknown', evidence=[], available_count=0, unavailable_count=0) -%}
+  {% for e in d.relevant_entity_ids -%}
+    {% set es = states[e] -%}
+    {% if es is not none and es.state | lower not in ['unknown','unavailable','none',''] -%}
+      {% set p.available_count = p.available_count + 1 -%}
+    {% else -%}
+      {% set p.unavailable_count = p.unavailable_count + 1 -%}
+    {% endif -%}
+  {% endfor -%}
+  {% for e in d.entity_ids -%}
+    {% set es = states[e] -%}
+    {% if es is not none -%}
+      {% set hint = (es.name ~ ' ' ~ e ~ ' ' ~ es.state) | lower -%}
+      {% if 'battery temperature' in hint and es.state | lower not in ['unknown','unavailable','none',''] -%}
+        {% set p.battery_temperature = es.state ~ (es.attributes.get('unit_of_measurement') or '') -%}
+      {% endif -%}
+      {% if 'charg' in hint or 'power' in hint or 'plug' in hint or 'wired' in hint or 'mains' in hint or 'ac ' in hint or 'usb' in hint -%}
+        {% set p.evidence = p.evidence + [es.name ~ ': ' ~ es.state] -%}
+        {% if 'charg' in hint and es.state | lower in ['on','true','charging'] %}{% set p.charging = 'Yes' %}{% set p.mode = 'Charging' %}{% endif -%}
+        {% if 'charg' in hint and es.state | lower in ['off','false','not charging'] %}{% set p.charging = 'No' %}{% endif -%}
+        {% if ('wired' in hint or 'mains' in hint or 'plug' in hint or 'usb' in hint or 'ac ' in hint) and es.state | lower not in ['off','false','unknown','unavailable'] %}{% set p.wired = 'Likely' %}{% set p.mode = 'External power' %}{% endif -%}
+        {% if 'discharg' in hint %}{% set p.mode = 'Battery' %}{% endif -%}
+      {% endif -%}
+    {% endif -%}
+  {% endfor -%}
+  {% set ha_status = 'Online' if p.available_count > 0 else 'Offline' -%}
+  {% set ha_status_display = '✅' if p.available_count > 0 else '❌' -%}
+  {% set availability_evidence = p.available_count ~ ' available / ' ~ p.unavailable_count ~ ' unavailable' -%}
+  {% set batteries.items = batteries.items + [{'device_id': d.device_id, 'entity_id': d.battery_entity_id, 'name': d.name, 'area': d.area, 'manufacturer': d.manufacturer, 'function': d.function, 'classification': d.classification, 'level': battery_display, 'sort_level': sort_level, 'battery_icon': battery_icon, 'ha_status': ha_status, 'ha_status_display': ha_status_display, 'availability_evidence': availability_evidence, 'charging': p.charging, 'wired': p.wired, 'mode': p.mode, 'battery_temperature': p.battery_temperature, 'evidence': p.evidence | join('; ')}] -%}
 {% endfor -%}
 
 {% set table = namespace(text='| # | Online | Battery | Device | Location | Manufacturer | Function | Splunk test |\n|--:|:--:|:--|:--|:--|:--|:--|:--|') -%}
 {% for i in batteries.items | sort(attribute='sort_level') -%}
-{% set configure_url = '/local/smartfamilyops/splunk-onboarding.html?entity_id=' ~ (i.entity_id | urlencode) ~ '&device_name=' ~ (i.name | urlencode) ~ '&location=' ~ (i.area | urlencode) ~ '&manufacturer=' ~ (i.manufacturer | urlencode) ~ '&function=' ~ (i.function | urlencode) ~ '&ha_status=' ~ (i.ha_status | urlencode) ~ '&availability_evidence=' ~ (i.availability_evidence | urlencode) ~ '&classification=' ~ (i.classification | urlencode) ~ '&battery=' ~ (i.level | urlencode) ~ '&battery_temperature=' ~ (i.battery_temperature | urlencode) ~ '&charging=' ~ (i.charging | urlencode) ~ '&wired_power=' ~ (i.wired | urlencode) ~ '&current_mode=' ~ (i.mode | urlencode) ~ '&entity_evidence=' ~ (i.evidence | urlencode) ~ '&suggested_test=' ~ ('Battery + power + temperature' | urlencode) -%}
-{% set table.text = table.text ~ '\n| ' ~ loop.index ~ ' | <strong>' ~ i.ha_status_display ~ '</strong> | <abbr title="Source entity: ' ~ i.entity_id ~ '"><font color="#2196f3"><ha-icon icon="' ~ i.battery_icon ~ '"></ha-icon></font>' ~ ((' <strong>' ~ i.level ~ '</strong>') if i.level else '') ~ '</abbr> | <abbr title="Home Assistant registry value associated with entity: ' ~ i.entity_id ~ '"><strong>' ~ i.name ~ '</strong></abbr> | <abbr title="Home Assistant area registry value for entity: ' ~ i.entity_id ~ '">' ~ i.area ~ '</abbr> | <abbr title="Home Assistant device registry value for entity: ' ~ i.entity_id ~ '">' ~ i.manufacturer ~ '</abbr> | ' ~ i.function ~ ' | <a href="' ~ configure_url ~ '" target="_blank" rel="noopener noreferrer">Configure</a> |' -%}
+{% set configure_url = '/local/smartfamilyops/splunk-onboarding.html?device_id=' ~ (i.device_id | urlencode) ~ '&entity_id=' ~ (i.entity_id | urlencode) ~ '&device_name=' ~ (i.name | urlencode) ~ '&location=' ~ (i.area | urlencode) ~ '&manufacturer=' ~ (i.manufacturer | urlencode) ~ '&function=' ~ (i.function | urlencode) ~ '&ha_status=' ~ (i.ha_status | urlencode) ~ '&availability_evidence=' ~ (i.availability_evidence | urlencode) ~ '&classification=' ~ (i.classification | urlencode) ~ '&battery=' ~ (i.level | urlencode) ~ '&battery_temperature=' ~ (i.battery_temperature | urlencode) ~ '&charging=' ~ (i.charging | urlencode) ~ '&wired_power=' ~ (i.wired | urlencode) ~ '&current_mode=' ~ (i.mode | urlencode) ~ '&entity_evidence=' ~ (i.evidence | urlencode) ~ '&suggested_test=' ~ ('Battery + power + temperature' | urlencode) -%}
+{% set battery_cell = '<font color="#2196f3"><ha-icon icon="' ~ i.battery_icon ~ '"></ha-icon></font>' ~ ((' <strong>' ~ i.level ~ '</strong>') if i.level else '') -%}
+{% if i.entity_id -%}{% set battery_cell = '<abbr title="Source entity: ' ~ i.entity_id ~ '">' ~ battery_cell ~ '</abbr>' -%}{% endif -%}
+{% set table.text = table.text ~ '\n| ' ~ loop.index ~ ' | <strong>' ~ i.ha_status_display ~ '</strong> | ' ~ battery_cell ~ ' | <abbr title="Home Assistant device registry value for device: ' ~ i.device_id ~ '"><strong>' ~ i.name ~ '</strong></abbr> | <abbr title="Home Assistant area registry value for device: ' ~ i.device_id ~ '">' ~ i.area ~ '</abbr> | <abbr title="Home Assistant device registry value for device: ' ~ i.device_id ~ '">' ~ i.manufacturer ~ '</abbr> | ' ~ i.function ~ ' | <a href="' ~ configure_url ~ '" target="_blank" rel="noopener noreferrer">Configure</a> |' -%}
 {% endfor -%}
 {{- '\n\n' ~ table.text ~ '\n\n' -}}
 
-**Home Assistant status:** ✅ Online means at least one relevant stateful entity has a usable state. ❌ Offline means none of the relevant entities has a usable state. Availability evidence remains visible for diagnosis, but retired or optional entities do not downgrade an otherwise online device. The integration controls how quickly a silent device is marked unavailable.
+**Home Assistant status:** ✅ Online means at least one relevant stateful entity has a usable state. ❌ Offline means none of the relevant entities has a usable state. The published device catalogue keeps offline devices visible. Refresh discovery and publish in Dashboard Builder when registered devices or entities change.
 
-**Interpretation:** Likely means a related Home Assistant entity contains wired, mains, plug, USB, or AC evidence. Confirm the entity before treating it as definitive. Unknown is a useful Splunk discovery candidate because it identifies where an additional power-state test may be needed. Battery temperature is supporting telemetry for trend and anomaly detection; it does not by itself prove whether a device is using external power.
+**Interpretation:** Dashboard membership and function are evaluated by the published SmartFamilyOps classification catalogue. Current battery, power and availability values are read from Home Assistant at display time.

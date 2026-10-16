@@ -14,10 +14,10 @@ The app configuration is organised into two in-app sections:
 - Builds ordered rules from safe fields, comparisons and `all`/`any` condition groups.
 - Previews the resulting function for each device before publication.
 - Numbers preview rows continuously and paginates filtered results at 20 devices per page.
-- Validates the structured catalogue and asks Home Assistant to compile the generated Jinja before changing the live classifier.
-- Creates versioned backups of the current catalogue and template.
-- Writes files atomically and reloads custom templates only after validation.
-- Restores the previous files if the reload fails.
+- Validates both generated Jinja templates in Home Assistant before changing live files.
+- Creates one versioned recovery set containing the rules, classifier, device snapshot and generated device catalogue.
+- Writes the complete publication set atomically and reloads custom templates only after validation.
+- Restores the complete previous set if a write or reload fails.
 - Rejects stale saves when another browser session has changed the catalogue.
 - Groups multiple Home Assistant records that represent one physical asset and marks primary or duplicate sources explicitly.
 - Makes Battery Health dashboard membership an explicit rule outcome: include, exclude, or automatic when a battery entity exists.
@@ -25,7 +25,7 @@ The app configuration is organised into two in-app sections:
 - Opens Home Assistant's installed-apps page for update checks and app management without granting this app elevated Supervisor permissions.
 - Reloads the app interface on demand and serves frontend assets without browser caching so a newly installed interface appears immediately.
 - Creates the Battery Health dashboard on first start when the canonical SmartFamilyOps dashboard is absent, using the shipped title, icon, route and maintained card.
-- Preserves an existing dashboard during app starts and upgrades; the Dashboard Builder can explicitly reapply metadata defaults without replacing its cards.
+- Preserves existing dashboard cards during app starts and upgrades. After a successful publication, it upgrades only the recognised legacy SmartFamilyOps managed Battery Health card; unrelated and user-authored cards remain untouched.
 
 ## Managed files
 
@@ -41,17 +41,42 @@ It generates the Home Assistant custom template at:
 /config/custom_templates/smartfamilyops_device_classification.jinja
 ```
 
+At publication time it also records the installation-specific device snapshot at:
+
+```text
+/config/smartfamilyops/classification-rule-builder/device_catalogue.json
+```
+
+and generates the presentation catalogue consumed by Home Assistant dashboards at:
+
+```text
+/config/custom_templates/smartfamilyops_device_catalogue.jinja
+```
+
 Backups are kept beneath:
 
 ```text
 /config/smartfamilyops/classification-rule-builder/backups/
 ```
 
-The generated Jinja is an output. Edit the structured catalogue through the app and publish it again instead of changing the generated file by hand.
+Both Jinja files are generated outputs. Edit rules and membership through the app and publish again instead of changing generated files by hand. The existing `classification-rule-builder` data path remains stable for upgrade compatibility even though the visible product name is now Discovery Dashboard Builder.
 
-## Dashboard input contract
+## Why there are two generated Jinja files
 
-The Battery Health dashboard imports `classify_device` and passes one dictionary per device. The managed classifier accepts:
+The files have different authority and change cycles:
+
+| File | Responsibility | Portability | Changes when |
+| --- | --- | --- | --- |
+| `smartfamilyops_device_classification.jinja` | Reusable ordered rules that classify one supplied device | Portable across Home Assistant installations | A classification rule is published |
+| `smartfamilyops_device_catalogue.jinja` | Evaluated membership and stable IDs for devices in this Home Assistant installation | Installation-specific | Discovery is refreshed and the catalogue is published |
+
+This separation prevents a routine device refresh from rewriting the decision engine. It also keeps local device IDs out of the portable SmartFamilyOps rule design. The dashboard performs presentation and live-state lookup only; it no longer contains the authoritative battery-device discovery filter.
+
+The cost is that device additions, registry changes and label overrides are not reflected in dashboard membership until **Refresh Home Assistant data** and **Validate & publish** complete. Current state values remain live between publications.
+
+## Classification and catalogue contracts
+
+The builder supplies each discovered device to `classify_device`. The managed classifier accepts:
 
 | Key | Value |
 | --- | --- |
@@ -72,8 +97,20 @@ a duplicate source for the `front-door-lock` logical asset.
 `battery_health` is one of `include`, `exclude` or `automatic`. Automatic
 membership includes a device when discovery finds a battery entity. This keeps
 the default useful for new devices while allowing rules such as mobile-phone
-evidence to exclude devices deliberately. The Battery Health dashboard consumes
-this result, so its inclusion policy is maintained in the builder.
+evidence to exclude devices deliberately. Include forces membership even if no
+battery entity is recognised; the dashboard then shows an unknown battery icon.
+The published device catalogue consumes this result, so membership is maintained
+in the builder rather than hard-coded in the dashboard.
+
+`battery_monitor` and `battery_ignore` Home Assistant labels remain supported for
+compatibility. Monitor wins as an explicit inclusion; ignore removes an automatic
+or rule-included device. These registry labels are evaluated during publication.
+
+The Battery Health dashboard imports `battery_health_devices` from the generated
+device catalogue. Each record contains stable device and entity IDs, registry
+metadata, the evaluated function and membership evidence. The dashboard reads
+current states for those IDs when it renders, so offline devices stay listed and
+live battery values do not require republishing.
 
 The starter catalogue keeps SIM/BSSID registry evidence as the strongest mobile
 phone rule. It also includes an Apple/iPhone fallback because Home Assistant
@@ -111,7 +148,7 @@ metadata; existing cards are retained.
 
 The **Classification Rules** and **Dashboard Builder** tabs are inside **Open Web UI** (and the app's sidebar page). Home Assistant's outer **Info**, **Documentation**, **Configuration** and **Log** tabs are fixed app-management tabs. Use **Open Home Assistant Apps** to go directly to Home Assistant's installed-apps page, where its own refresh control checks for updates. **Refresh Home Assistant data** re-reads device, entity and area discovery without replacing unpublished rule edits. **Reload app interface** reconnects the ingress page and warns before discarding unpublished edits.
 
-On its first run, it presents a starter catalogue containing the rules already established for BILRESA controls, the SwitchBot Keypad Vision Pro, TIMMERFLOTTE, cameras, motion detectors, locks and contact sensors. Nothing is written until **Validate & publish** is selected and confirmed.
+On its first run, it presents a starter catalogue containing the rules already established for BILRESA controls, the SwitchBot Keypad Vision Pro, TIMMERFLOTTE, cameras, motion detectors, locks and contact sensors. Nothing is written until **Validate & publish** is selected and confirmed. Publication performs a fresh server-side discovery, so the saved catalogue does not rely on a stale browser payload.
 
 The starter catalogue is distributed with the app and becomes app-owned structured configuration when published. Generated Jinja remains an output rather than the source of truth.
 
@@ -122,6 +159,6 @@ reported as an import error and is never silently replaced.
 
 ## Recovery
 
-If a published rule is logically wrong but valid, use the app to correct or reorder it and publish again. For manual recovery, copy the required paired catalogue/template backup into their managed paths and run the Home Assistant action `homeassistant.reload_custom_templates`.
+If a published rule is logically wrong but valid, use the app to correct or reorder it and publish again. For manual recovery, restore all four files from the same timestamped recovery set—the rules JSON, classifier Jinja, device-catalogue JSON and device-catalogue Jinja—then run the Home Assistant action `homeassistant.reload_custom_templates`.
 
 The builder never stores a Home Assistant token. Its protected container receives the short-lived Supervisor token at runtime and uses it only through Home Assistant's Core API proxy for registry discovery, validation and template reload.

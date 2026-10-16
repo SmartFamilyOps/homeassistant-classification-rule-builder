@@ -102,6 +102,30 @@ export async function loadDashboardConfig(urlPath) {
 }
 
 const cameraTerms = ["person", "vehicle", "animal", "snapshot", "record", "stream", "privacy", "pir"];
+const configurationDomains = new Set(["button", "number", "select", "update", "scene", "automation"]);
+
+function entityLabels(entity) {
+  return Array.isArray(entity.labels) ? entity.labels : [];
+}
+
+export function deviceEntityEvidence(deviceEntities, statesById) {
+  const batteryCandidates = deviceEntities.filter((entity) => {
+    const state = statesById.get(entity.entity_id);
+    return state?.attributes?.device_class === "battery" || entity.entity_id.includes("battery");
+  });
+  batteryCandidates.sort((left, right) => Number(Boolean(left.disabled_by)) - Number(Boolean(right.disabled_by)));
+  const batteryEntity = batteryCandidates[0];
+  const relevantEntityIds = deviceEntities
+    .filter((entity) => !entity.disabled_by && !configurationDomains.has(entity.entity_id.split(".")[0]))
+    .map((entity) => entity.entity_id);
+  return {
+    battery: batteryCandidates.length > 0,
+    battery_entity_id: batteryEntity?.entity_id ?? "",
+    battery_ignore: batteryCandidates.some((entity) => entityLabels(entity).includes("battery_ignore")),
+    battery_monitor: batteryCandidates.some((entity) => entityLabels(entity).includes("battery_monitor")),
+    relevant_entity_ids: relevantEntityIds,
+  };
+}
 
 export function summariseDeviceEntities(deviceEntities, statesById) {
   const enabledEntities = deviceEntities.filter((entity) => !entity.disabled_by);
@@ -136,10 +160,7 @@ export async function discoverDevices() {
       return entity.name || entity.original_name || state?.attributes?.friendly_name || entity.entity_id.split(".")[1].replaceAll("_", " ");
     });
     const evidence = [...entityNames, ...deviceEntities.map((entity) => entity.entity_id)].map((value) => value.toLocaleLowerCase("en-GB"));
-    const battery = deviceEntities.some((entity) => {
-      const state = statesById.get(entity.entity_id);
-      return state?.attributes?.device_class === "battery" || entity.entity_id.includes("battery");
-    });
+    const deviceEvidence = deviceEntityEvidence(deviceEntities, statesById);
     const entitySummary = summariseDeviceEntities(deviceEntities, statesById);
     return {
       id: device.id,
@@ -151,7 +172,7 @@ export async function discoverDevices() {
       entity_ids: deviceEntities.map((entity) => entity.entity_id),
       ...entitySummary,
       entity_count: deviceEntities.length,
-      battery,
+      ...deviceEvidence,
       camera_evidence: cameraTerms.some((term) => evidence.some((value) => value.includes(term))),
     };
   }).sort((a, b) => a.name.localeCompare(b.name));

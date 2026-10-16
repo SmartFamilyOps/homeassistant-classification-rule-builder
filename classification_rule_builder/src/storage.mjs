@@ -5,8 +5,10 @@ import { catalogueRevision, importLegacyCatalogue, seedCatalogue } from "./rules
 const root = process.env.CONFIG_ROOT ?? "/config";
 const dataDirectory = path.join(root, "smartfamilyops", "classification-rule-builder");
 const cataloguePath = path.join(dataDirectory, "classification_rules.json");
+const deviceCataloguePath = path.join(dataDirectory, "device_catalogue.json");
 const backupDirectory = path.join(dataDirectory, "backups");
 export const templatePath = path.join(root, "custom_templates", "smartfamilyops_device_classification.jinja");
+export const deviceTemplatePath = path.join(root, "custom_templates", "smartfamilyops_device_catalogue.jinja");
 
 async function readOptional(file) {
   try { return await readFile(file, "utf8"); } catch (error) {
@@ -51,16 +53,28 @@ function timestamp() {
   return new Date().toISOString().replaceAll(":", "-");
 }
 
-export async function saveFiles(catalogue, template) {
+export async function saveFiles(catalogue, template, deviceCatalogue, deviceTemplate) {
   await mkdir(backupDirectory, { recursive: true });
   const stamp = timestamp();
   const previousCatalogue = await readOptional(cataloguePath);
   const previousTemplate = await readOptional(templatePath);
+  const previousDeviceCatalogue = await readOptional(deviceCataloguePath);
+  const previousDeviceTemplate = await readOptional(deviceTemplatePath);
   if (previousCatalogue) await writeFile(path.join(backupDirectory, `${stamp}.catalogue.json`), previousCatalogue, { mode: 0o600 });
   if (previousTemplate) await writeFile(path.join(backupDirectory, `${stamp}.template.jinja`), previousTemplate, { mode: 0o600 });
-  await atomicWrite(cataloguePath, `${JSON.stringify(catalogue, null, 2)}\n`);
-  await atomicWrite(templatePath, template);
-  return { previousCatalogue, previousTemplate };
+  if (previousDeviceCatalogue) await writeFile(path.join(backupDirectory, `${stamp}.device-catalogue.json`), previousDeviceCatalogue, { mode: 0o600 });
+  if (previousDeviceTemplate) await writeFile(path.join(backupDirectory, `${stamp}.device-template.jinja`), previousDeviceTemplate, { mode: 0o600 });
+  const previous = { previousCatalogue, previousTemplate, previousDeviceCatalogue, previousDeviceTemplate };
+  try {
+    await atomicWrite(cataloguePath, `${JSON.stringify(catalogue, null, 2)}\n`);
+    await atomicWrite(templatePath, template);
+    await atomicWrite(deviceCataloguePath, `${JSON.stringify(deviceCatalogue, null, 2)}\n`);
+    await atomicWrite(deviceTemplatePath, deviceTemplate);
+  } catch (error) {
+    await restoreFiles(previous);
+    throw error;
+  }
+  return previous;
 }
 
 export async function restoreFiles(previous) {
@@ -68,14 +82,18 @@ export async function restoreFiles(previous) {
   else await rm(cataloguePath, { force: true });
   if (previous.previousTemplate !== null) await atomicWrite(templatePath, previous.previousTemplate);
   else await rm(templatePath, { force: true });
+  if (previous.previousDeviceCatalogue !== null) await atomicWrite(deviceCataloguePath, previous.previousDeviceCatalogue);
+  else await rm(deviceCataloguePath, { force: true });
+  if (previous.previousDeviceTemplate !== null) await atomicWrite(deviceTemplatePath, previous.previousDeviceTemplate);
+  else await rm(deviceTemplatePath, { force: true });
 }
 
 export async function pruneBackups() {
   const limit = Number(process.env.BACKUP_LIMIT ?? "20");
   const names = (await readdir(backupDirectory)).sort().reverse();
-  for (const name of names.slice(limit * 2)) await rm(path.join(backupDirectory, name), { force: true });
+  for (const name of names.slice(limit * 4)) await rm(path.join(backupDirectory, name), { force: true });
 }
 
 export function pathsForStatus() {
-  return { catalogue: cataloguePath, template: templatePath, backups: backupDirectory };
+  return { catalogue: cataloguePath, template: templatePath, device_catalogue: deviceCataloguePath, device_template: deviceTemplatePath, backups: backupDirectory };
 }

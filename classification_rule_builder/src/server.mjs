@@ -3,7 +3,8 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createDashboard, deleteDashboard, discoverDevices, listDashboards, loadDashboardConfig, reloadCustomTemplates, saveDashboardConfig, updateDashboard, validateTemplate } from "./home-assistant.mjs";
-import { BATTERY_HEALTH_DASHBOARD, batteryHealthConfig, findBatteryHealthDashboard, findLegacyBatteryHealthDashboard, migrateBatteryHealthConfig, validDashboardPath } from "./dashboard.mjs";
+import { BATTERY_HEALTH_DASHBOARD, batteryHealthConfig, findBatteryHealthDashboard, findLegacyBatteryHealthDashboard, migrateBatteryHealthConfig, upgradeManagedBatteryHealthCard, validDashboardPath } from "./dashboard.mjs";
+import { buildDeviceCatalogue, generateDeviceCatalogueJinja } from "./device-catalogue.mjs";
 import { catalogueRevision, classifyDevice, FIELD_DEFINITIONS, generateJinja, OPERATORS, validateCatalogue } from "./rules.mjs";
 import { pathsForStatus, pruneBackups, readCatalogue, restoreFiles, saveFiles } from "./storage.mjs";
 
@@ -46,6 +47,16 @@ async function dashboardStatus() {
     dashboard: findBatteryHealthDashboard(dashboards),
     legacy_dashboard: findLegacyBatteryHealthDashboard(dashboards),
   };
+}
+
+async function upgradeDashboardCardIfManaged() {
+  const status = await dashboardStatus();
+  if (!status.dashboard) return false;
+  const existingConfig = await loadDashboardConfig(BATTERY_HEALTH_DASHBOARD.url_path);
+  const content = await readFile(dashboardCardPath, "utf8");
+  const upgrade = upgradeManagedBatteryHealthCard(existingConfig, content);
+  if (upgrade.changed) await saveDashboardConfig(BATTERY_HEALTH_DASHBOARD.url_path, upgrade.config);
+  return upgrade.changed;
 }
 
 async function migrateLegacyDashboard(legacyDashboard) {
@@ -112,9 +123,12 @@ async function handle(request, response) {
     const template = generateJinja(payload.catalogue);
     await validateTemplate(template);
     const devices = Array.isArray(payload.devices) ? payload.devices : [];
+    const deviceCatalogue = buildDeviceCatalogue(payload.catalogue, devices);
+    await validateTemplate(generateDeviceCatalogueJinja(deviceCatalogue));
     return json(response, 200, {
       valid: true,
       revision: catalogueRevision(payload.catalogue),
+      device_count: deviceCatalogue.devices.length,
       preview: devices.map((device) => ({ device_id: device.id, ...classifyDevice(payload.catalogue, device) })),
     });
   }
@@ -126,7 +140,11 @@ async function handle(request, response) {
     if (errors.length) return json(response, 422, { error: "Rule validation failed.", errors });
     const template = generateJinja(payload.catalogue);
     await validateTemplate(template);
-    const previous = await saveFiles(payload.catalogue, template);
+    const devices = await discoverDevices();
+    const deviceCatalogue = buildDeviceCatalogue(payload.catalogue, devices);
+    const deviceTemplate = generateDeviceCatalogueJinja(deviceCatalogue);
+    await validateTemplate(deviceTemplate);
+    const previous = await saveFiles(payload.catalogue, template, deviceCatalogue, deviceTemplate);
     try {
       await reloadCustomTemplates();
     } catch (error) {
@@ -134,8 +152,14 @@ async function handle(request, response) {
       try { await reloadCustomTemplates(); } catch {}
       throw new Error(`Home Assistant rejected the published template; the previous files were restored. ${error.message}`);
     }
+    let dashboardCardUpgraded = false;
+    try {
+      dashboardCardUpgraded = await upgradeDashboardCardIfManaged();
+    } catch (error) {
+      console.error(`[builder] Published catalogues but could not upgrade the managed Battery Health card: ${error.message}`);
+    }
     await pruneBackups();
-    return json(response, 200, { saved: true, revision: catalogueRevision(payload.catalogue), reloaded: true });
+    return json(response, 200, { saved: true, revision: catalogueRevision(payload.catalogue), device_count: deviceCatalogue.devices.length, reloaded: true, dashboard_card_upgraded: dashboardCardUpgraded });
   }
   return json(response, 404, { error: "Not found." });
 }

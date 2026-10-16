@@ -140,12 +140,12 @@ test("unknown legacy Jinja is refused instead of silently replaced", () => {
   assert.match(result.reason, /unsupported or missing evidence/);
 });
 
-test("Battery Health dashboard delegates membership to the classifier", async () => {
+test("Battery Health dashboard consumes the published device catalogue", async () => {
   const card = await readFile(new URL("../../examples/battery-health-dashboard/card.jinja", import.meta.url), "utf8");
-  assert.match(card, /classification_result\.battery_health/);
-  assert.match(card, /classification_result\.source_role/);
-  assert.match(card, /catalogue_included = battery_health != 'exclude' and source_role != 'duplicate'/);
-  assert.doesNotMatch(card, /not p\.phone/);
+  assert.match(card, /from 'smartfamilyops_device_catalogue\.jinja' import battery_health_devices/);
+  assert.match(card, /for d in catalogued_devices/);
+  assert.doesNotMatch(card, /for s in states\.sensor/);
+  assert.doesNotMatch(card, /classify_device/);
 });
 
 test("Battery Health table keeps icon-only status second, battery third and limits hover provenance to registry-backed cells", async () => {
@@ -153,16 +153,15 @@ test("Battery Health table keeps icon-only status second, battery third and limi
   const header = card.match(/namespace\(text='([^']+)'\)/)?.[1] ?? "";
   assert.match(header, /^\| # \| Online \| Battery \| Device \| Location \| Manufacturer \| Function \| Splunk test \|/);
   assert.doesNotMatch(header, /Current mode/);
-  assert.match(card, /ha_status_display = '✅'/);
-  assert.match(card, /ha_status_display = '❌'/);
+  assert.match(card, /ha_status_display = '✅' if p\.available_count > 0 else '❌'/);
   assert.doesNotMatch(card, /ha_status_display = '✅ Online'/);
   assert.doesNotMatch(card, /ha_status_display = '❌ Offline'/);
   assert.match(card, /mdi:battery-10/);
   assert.match(card, /<font color="#2196f3"><ha-icon/);
   assert.match(card, /battery_display = .* if level_valid else ''/);
   assert.match(card, /title="Source entity: ' ~ i\.entity_id/);
-  assert.match(card, /Home Assistant area registry value for entity:/);
-  assert.match(card, /Home Assistant device registry value for entity:/);
+  assert.match(card, /Home Assistant area registry value for device:/);
+  assert.match(card, /Home Assistant device registry value for device:/);
   assert.doesNotMatch(card, /title="Calculated content:/);
   assert.match(card, /target="_blank" rel="noopener noreferrer"/);
 });

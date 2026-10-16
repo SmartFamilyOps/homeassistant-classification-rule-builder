@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.0
+
+- Move Battery Health device membership out of the dashboard and into a published, installation-specific device catalogue.
+- Generate `smartfamilyops_device_catalogue.jinja` alongside the reusable classification template so explicitly included and offline devices remain visible even when no battery state is available.
+- Publish the rule source, classifier, device snapshot and catalogue template as one recoverable set, with validation and rollback across all four files.
+- Preserve `battery_monitor` and `battery_ignore` label behaviour while making the builder the governing membership surface.
+- Upgrade only the recognised SmartFamilyOps managed markdown card after a successful catalogue publication; preserve unrelated user cards.
+- Keep current battery, power and availability values live at dashboard-render time while function and membership remain deterministic until the next publication.
+
 ## 0.6.2
 
 - Rename the Home Assistant sidebar panel to **Dashboard Builder** and use `mdi:view-dashboard-edit`.

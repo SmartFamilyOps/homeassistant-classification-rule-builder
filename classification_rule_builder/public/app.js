@@ -72,6 +72,8 @@ function classify(catalogue, device) {
 }
 
 function batteryHealthIncluded(result, device) {
+  if (device.battery_monitor) return true;
+  if (device.battery_ignore) return false;
   if (result.source_role === "duplicate") return false;
   if (result.battery_health === "include") return true;
   if (result.battery_health === "exclude") return false;
@@ -421,7 +423,7 @@ async function validateDraft() {
   try {
     await api("validate", { method: "POST", body: JSON.stringify({ catalogue: state.catalogue, devices: state.devices }) });
     $("#validation-errors").hidden = true;
-    $("#confirm-copy").textContent = `${state.catalogue.rules.filter((rule) => rule.enabled).length} enabled rules passed catalogue and Home Assistant Jinja validation. Publishing creates a backup, writes the managed classifier and reloads custom templates.`;
+    $("#confirm-copy").textContent = `${state.catalogue.rules.filter((rule) => rule.enabled).length} enabled rules passed catalogue and Home Assistant Jinja validation. Publishing discovers current devices, creates one recovery set, writes the classifier and managed device catalogue, then reloads custom templates.`;
     $("#confirm-dialog").showModal();
     status("ok", "Validation passed", "Review the publish confirmation. No live file has changed yet.");
   } catch (error) {
@@ -438,14 +440,14 @@ async function validateDraft() {
 async function publish() {
   $("#confirm-save").disabled = true;
   $("#save").disabled = true;
-  status("waiting", "Publishing rules", "Creating a backup, writing the generated classifier and reloading templates.");
+  status("waiting", "Publishing rules and devices", "Refreshing discovery, creating one recovery set and writing both generated templates.");
   try {
     const result = await api("save", { method: "POST", body: JSON.stringify({ catalogue: state.catalogue, base_revision: state.revision }) });
     state.revision = result.revision;
     state.baseline = clone(state.catalogue);
     state.dirty = false;
     $("#confirm-dialog").close();
-    status("ok", "Rules published", "Home Assistant custom templates reloaded successfully; the prior version is retained as a backup.");
+    status("ok", "Rules and device catalogue published", `${result.device_count} Battery Health devices were published. Home Assistant custom templates reloaded successfully; the prior pair is retained as one recovery set.`);
     renderSummary();
     renderRules();
     renderPreview();

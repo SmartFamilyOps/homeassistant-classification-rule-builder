@@ -10,15 +10,19 @@ Use **Refresh Home Assistant data** to re-read device, entity and area discovery
 
 On first launch, the app reads the existing SmartFamilyOps classifier from Home Assistant. A recognised legacy catalogue is translated into editable rules. No live file changes until **Validate & publish** is confirmed.
 
-Publication performs four guarded steps:
+Publication performs six guarded steps:
 
 1. Validate the structured catalogue.
-2. Ask Home Assistant to compile the generated Jinja.
-3. Back up and atomically replace the managed catalogue/template pair.
-4. Run `homeassistant.reload_custom_templates`.
+2. Ask Home Assistant to compile the reusable classification Jinja.
+3. Refresh device, entity and area discovery on the server.
+4. Evaluate Battery Health membership and compile the installation-specific device-catalogue Jinja.
+5. Back up and atomically replace the rules, classifier, device snapshot and catalogue template as one set.
+6. Run `homeassistant.reload_custom_templates` and upgrade only the recognised SmartFamilyOps managed dashboard card.
 
-If reload fails, the preceding files are restored and Home Assistant reloads them again.
+If a write or reload fails, the complete preceding set is restored and Home Assistant reloads it again. Unrelated dashboard cards are not replaced.
 
 The app reads Home Assistant's device, entity and area registries. Disabled registered entities are included as classification evidence without enabling them.
+
+The reusable classifier and local device catalogue are deliberately separate. The classifier is portable SmartFamilyOps logic. The device catalogue contains installation-specific IDs and evaluated dashboard membership. Users manage both through this app; neither generated Jinja file should be edited manually.
 
 See the project README for the dashboard input contract and recovery procedure.

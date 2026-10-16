@@ -45,3 +45,20 @@ export function migrateBatteryHealthConfig(config, legacyUrlPath) {
   }
   return migrated;
 }
+
+export function upgradeManagedBatteryHealthCard(config, content) {
+  const upgraded = structuredClone(config);
+  let changed = false;
+  for (const view of (upgraded.views ?? [])) {
+    for (const card of (view.cards ?? [])) {
+      if (card.type !== "markdown" || typeof card.content !== "string") continue;
+      const isManagedLegacyCard = card.content.includes("Battery & Power Observability")
+        && card.content.includes("smartfamilyops_device_classification.jinja")
+        && card.content.includes("for s in states.sensor");
+      if (!isManagedLegacyCard) continue;
+      card.content = content;
+      changed = true;
+    }
+  }
+  return { config: upgraded, changed };
+}
