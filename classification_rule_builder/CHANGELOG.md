@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.0
+
+- Rename the app to **SmartFamilyOps Discovery Dashboard Builder** while retaining the existing technical slug and managed-file locations.
+- Use the concise canonical Battery Health route `/smartfamilyops-dashboards/battery-health`.
+- Keep **Classification Rules** as the name of the rule-authoring workspace inside the broader dashboard-building app.
+
 ## 0.5.1
 
 - Run the test files directly so the release workflow works on the app's supported Node.js 22 runtime.

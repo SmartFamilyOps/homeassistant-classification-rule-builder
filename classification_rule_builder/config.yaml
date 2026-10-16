@@ -1,5 +1,5 @@
-name: SmartFamilyOps Classification Rule Builder
-version: "0.5.1"
+name: SmartFamilyOps Discovery Dashboard Builder
+version: "0.6.0"
 slug: classification_rule_builder
 description: Build, preview, validate and publish deterministic Home Assistant device-classification rules.
 url: https://github.com/SmartFamilyOps/homeassistant-classification-rule-builder

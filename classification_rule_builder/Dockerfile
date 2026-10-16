@@ -4,7 +4,7 @@ ARG BUILD_VERSION
 ARG BUILD_ARCH
 
 LABEL \
-  io.hass.name="SmartFamilyOps Classification Rule Builder" \
+  io.hass.name="SmartFamilyOps Discovery Dashboard Builder" \
   io.hass.description="Safe rule catalogue and Jinja generator for SmartFamilyOps device discovery" \
   io.hass.version="${BUILD_VERSION}" \
   io.hass.type="app" \

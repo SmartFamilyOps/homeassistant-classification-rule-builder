@@ -1,6 +1,6 @@
-# SmartFamilyOps Classification Rule Builder
+# SmartFamilyOps Discovery Dashboard Builder
 
-SmartFamilyOps Classification Rule Builder is a local Home Assistant app for maintaining deterministic device-classification rules without hand-editing Jinja.
+SmartFamilyOps Discovery Dashboard Builder creates reusable discovery dashboards backed by deterministic device-classification rules. Its visual rule workspace removes the need to hand-edit Jinja.
 
 The app configuration is organised into two in-app sections:
 
@@ -88,20 +88,19 @@ dashboard is migrated to the generic lists.
 
 ## Installation
 
-Place this folder in Home Assistant's local apps/add-ons directory, refresh the local app store, install **SmartFamilyOps Classification Rule Builder**, and start it. The app appears in the Home Assistant sidebar through ingress and does not publish a LAN port.
+Add this GitHub repository to Home Assistant's app-store repositories, refresh the app store, install **SmartFamilyOps Discovery Dashboard Builder**, and start it. The app appears in the Home Assistant sidebar through ingress and does not publish a LAN port.
 
-The installed ingress URL is derived from Home Assistant's local repository
-prefix and the app `slug`, currently `/app/local_classification_rule_builder`.
-Renaming the slug would install a second app identity rather than provide a
-cosmetic redirect, so a future branded URL migration must copy the managed
-catalogue and app options before the old identity is retired.
+The installed ingress URL is derived from the repository identifier assigned by
+Home Assistant and the stable app slug `classification_rule_builder`. The
+visible product name can evolve without changing that slug; changing the slug
+would create a second app identity and complicate upgrades.
 
 On first start, the app checks for the canonical Battery Health dashboard. If it
 is missing, the app creates it in storage mode with **Battery Health** as the
 sidebar title, `mdi:battery-sync` as the icon, and this route:
 
 ```text
-/smartfamilyops-dashboard/SmartFamilyOps-battery-health
+/smartfamilyops-dashboards/battery-health
 ```
 
 Home Assistant requires a custom dashboard URL key to contain a hyphen, so

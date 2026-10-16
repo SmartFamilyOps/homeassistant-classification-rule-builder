@@ -13,7 +13,7 @@ The rendered table places Home Assistant availability immediately after the row 
 The canonical SmartFamilyOps route is:
 
 ```text
-/smartfamilyops-dashboard/SmartFamilyOps-battery-health
+/smartfamilyops-dashboards/battery-health
 ```
 
 Home Assistant exposes one dashboard path and one view path, so this two-level

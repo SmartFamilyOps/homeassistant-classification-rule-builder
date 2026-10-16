@@ -1,4 +1,4 @@
-# SmartFamilyOps Classification Rule Builder
+# SmartFamilyOps Discovery Dashboard Builder
 
 Use the **Web UI** tab to maintain deterministic device-classification rules without editing Jinja.
 

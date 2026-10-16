@@ -12,5 +12,5 @@ export CONFIG_ROOT="/config"
 export BACKUP_LIMIT="$(bashio::config 'backup_limit')"
 export PORT=8099
 
-bashio::log.info "Starting SmartFamilyOps Classification Rule Builder."
+bashio::log.info "Starting SmartFamilyOps Discovery Dashboard Builder."
 exec node /app/src/server.mjs

@@ -1,8 +1,8 @@
 export const BATTERY_HEALTH_DASHBOARD = Object.freeze({
   title: "Battery Health",
   icon: "mdi:battery-sync",
-  url_path: "smartfamilyops-dashboard",
-  view_path: "SmartFamilyOps-battery-health",
+  url_path: "smartfamilyops-dashboards",
+  view_path: "battery-health",
   show_in_sidebar: true,
   require_admin: false,
   mode: "storage",
