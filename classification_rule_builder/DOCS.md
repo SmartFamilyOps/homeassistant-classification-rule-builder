@@ -52,4 +52,6 @@ This model also defines a future extension path: expose the stages explicitly in
 
 The reusable classifier and local device catalogue are deliberately separate. The classifier is portable SmartFamilyOps logic. The aggregate device catalogue contains installation-specific IDs and a separate evaluated membership list for every compatible dashboard. **Save as new dashboard** copies the source policy; later policy edits remain isolated. Users manage both through this app; neither generated Jinja file should be edited manually.
 
+Use **Create new dashboard** when a list should start from a clean definition rather than inherit another view. The app creates the Home Assistant dashboard registration, a managed table view, an app-owned definition and an independent automatic-candidate policy. List dashboards are the supported baseline; specialised visualisations can be introduced later without weakening the shared classifier or dashboard ownership boundary.
+
 See the project README for the dashboard input contract and recovery procedure.

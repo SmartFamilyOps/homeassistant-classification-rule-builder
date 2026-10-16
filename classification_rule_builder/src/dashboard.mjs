@@ -112,6 +112,22 @@ export function batteryHealthConfig(content) {
   };
 }
 
+export function discoveryListConfig(content, definition) {
+  return {
+    smartfamilyops_dashboard: {
+      schema_version: 1,
+      owner: "SmartFamilyOps Discovery Dashboard Builder",
+      definition_id: definition.id,
+    },
+    views: [{
+      title: definition.title,
+      path: definition.view_path,
+      icon: definition.icon,
+      cards: [{ type: "markdown", smartfamilyops_managed_surface: true, content }],
+    }],
+  };
+}
+
 export function retargetManagedDashboardCard(config, definitionId) {
   const updated = structuredClone(config);
   let changed = false;

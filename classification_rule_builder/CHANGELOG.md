@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.11.0
+
+- Add **Create new dashboard** for independent SmartFamilyOps list dashboards with their own route, metadata, managed view and population policy.
+- Keep fresh dashboards intentionally simple: a generated table is the first supported presentation type, while classification rules remain shared and dashboard scope remains independent.
+
 ## 0.10.5
 
 - Keep Battery Health Edit Device navigation in the current Home Assistant view so origin-relative device routes work consistently in browsers and the Companion app.

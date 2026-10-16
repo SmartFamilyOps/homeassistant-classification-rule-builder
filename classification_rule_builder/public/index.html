@@ -202,6 +202,7 @@
           <h3>Open dashboard</h3>
           <label>Dashboard<select id="compatible-dashboard"></select></label>
           <button id="open-compatible-dashboard" type="button" class="secondary small">Open compatible dashboard</button>
+          <button id="create-dashboard" type="button" class="secondary small">Create new dashboard</button>
         </article>
       </section>
 
@@ -259,6 +260,23 @@
       <label class="switch"><input id="save-as-sidebar" type="checkbox"><span></span>Show draft in sidebar</label>
       <div id="save-as-error" class="errors" hidden></div>
       <div class="dialog-actions"><button value="cancel" class="secondary">Cancel</button><button id="confirm-save-as" value="default">Create draft</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="create-dashboard-dialog">
+    <form method="dialog" id="create-dashboard-form">
+      <p class="eyebrow">Fresh managed list</p>
+      <h2>Create new dashboard</h2>
+      <p>Creates an independent SmartFamilyOps list dashboard with its own route and discovery scope. You can publish its population policy later.</p>
+      <div class="form-grid two">
+        <label>Name<input id="create-title" required></label>
+        <label>Path name<input id="create-slug" required></label>
+        <label>Icon<input id="create-icon" value="mdi:view-dashboard-outline"></label>
+        <label>Description<input id="create-description" value="SmartFamilyOps discovery list."></label>
+      </div>
+      <label class="switch"><input id="create-sidebar" type="checkbox"><span></span>Show in sidebar</label>
+      <div id="create-error" class="errors" hidden></div>
+      <div class="dialog-actions"><button value="cancel" class="secondary">Cancel</button><button id="confirm-create-dashboard" value="default">Create dashboard</button></div>
     </form>
   </dialog>
 

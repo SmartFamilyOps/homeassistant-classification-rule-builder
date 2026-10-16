@@ -3,14 +3,15 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createDashboard, deleteDashboard, discoverDevices, listDashboards, loadDashboardConfig, reloadCustomTemplates, saveDashboardConfig, updateDashboard, validateTemplate } from "./home-assistant.mjs";
-import { BATTERY_HEALTH_DASHBOARD, batteryHealthConfig, findBatteryHealthDashboard, findLegacyBatteryHealthDashboard, migrateBatteryHealthConfig, retargetManagedDashboardCard, upgradeManagedBatteryHealthCard, validDashboardPath } from "./dashboard.mjs";
-import { batteryHealthDefinition, cloneDashboardConfig, isCompatibleDashboardConfig, newDashboardDefinition, readDashboardDefinitions, restoreDashboardDefinitionSet, saveDashboardDefinition, saveDashboardDefinitionSet } from "./dashboard-definitions.mjs";
+import { BATTERY_HEALTH_DASHBOARD, batteryHealthConfig, discoveryListConfig, findBatteryHealthDashboard, findLegacyBatteryHealthDashboard, migrateBatteryHealthConfig, retargetManagedDashboardCard, upgradeManagedBatteryHealthCard, validDashboardPath } from "./dashboard.mjs";
+import { batteryHealthDefinition, cloneDashboardConfig, isCompatibleDashboardConfig, newDashboardDefinition, newFreshDashboardDefinition, readDashboardDefinitions, restoreDashboardDefinitionSet, saveDashboardDefinition, saveDashboardDefinitionSet } from "./dashboard-definitions.mjs";
 import { buildDashboardDeviceCatalogues, generateDashboardDeviceCataloguesJinja } from "./device-catalogue.mjs";
 import { automaticCandidatePolicy, catalogueRevision, classifyDevice, FIELD_DEFINITIONS, generateJinja, OPERATORS, validateAutomaticCandidatePolicy, validateCatalogue } from "./rules.mjs";
 import { pathsForStatus, pruneBackups, publicationRequired, readCatalogue, restoreFiles, saveFiles } from "./storage.mjs";
 
 const publicDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../public");
 const dashboardCardPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../dashboard/battery-health-card.jinja");
+const discoveryListCardPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../dashboard/discovery-list-card.jinja");
 const port = Number(process.env.PORT ?? "8099");
 const maximumBodyBytes = 1_000_000;
 
@@ -158,6 +159,30 @@ async function saveAsDashboard(payload) {
   return { created: true, definition: { ...definition, url: `/${definition.url_path}/${definition.view_path}` } };
 }
 
+async function createFreshDashboard(payload) {
+  const { catalogue } = await readCatalogue();
+  const dashboards = await listDashboards();
+  const defaultPolicy = automaticCandidatePolicy(catalogue);
+  const definition = newFreshDashboardDefinition(payload, defaultPolicy, dashboards.map((dashboard) => dashboard.url_path));
+  const card = (await readFile(discoveryListCardPath, "utf8"))
+    .replaceAll("__DASHBOARD_ID__", definition.id)
+    .replaceAll("__DASHBOARD_TITLE__", definition.title);
+  const config = discoveryListConfig(card, definition);
+  const created = await createDashboard({
+    title: definition.title, icon: definition.icon, url_path: definition.url_path,
+    show_in_sidebar: definition.show_in_sidebar, require_admin: definition.require_admin,
+  });
+  try {
+    await saveDashboardConfig(definition.url_path, config);
+    await saveDashboardDefinition(definition);
+  } catch (error) {
+    const dashboardId = created?.id ?? (await listDashboards()).find((dashboard) => dashboard.url_path === definition.url_path)?.id;
+    if (dashboardId) try { await deleteDashboard(dashboardId); } catch {}
+    throw new Error(`The new dashboard could not be created; its incomplete Home Assistant dashboard was removed. ${error.message}`);
+  }
+  return { created: true, definition: { ...definition, url: `/${definition.url_path}/${definition.view_path}` } };
+}
+
 async function saveDashboardChanges(payload) {
   const definitions = await compatibleDashboardDefinitions();
   const current = definitions.find((definition) => definition.id === payload.id);
@@ -209,6 +234,7 @@ async function handle(request, response) {
   if (request.method === "GET" && url.pathname.endsWith("/api/dashboard")) return json(response, 200, await dashboardStatus());
   if (request.method === "GET" && url.pathname.endsWith("/api/dashboards")) return json(response, 200, { dashboards: await compatibleDashboardDefinitions() });
   if (request.method === "POST" && url.pathname.endsWith("/api/dashboards/save-as")) return json(response, 201, await saveAsDashboard(await body(request)));
+  if (request.method === "POST" && url.pathname.endsWith("/api/dashboards/create")) return json(response, 201, await createFreshDashboard(await body(request)));
   if (request.method === "POST" && url.pathname.endsWith("/api/dashboards/save")) return json(response, 200, await saveDashboardChanges(await body(request)));
   if (request.method === "POST" && url.pathname.endsWith("/api/dashboard/provision")) {
     return json(response, 200, await provisionDashboard({ alignExisting: true }));

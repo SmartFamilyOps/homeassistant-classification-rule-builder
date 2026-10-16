@@ -32,6 +32,26 @@ export function newDashboardDefinition(source, input, existingPaths = []) {
   };
 }
 
+export function newFreshDashboardDefinition(input, populationPolicy, existingPaths = []) {
+  const id = randomUUID();
+  const title = String(input.title ?? "New SmartFamilyOps dashboard").trim();
+  if (!title) throw Object.assign(new Error("Dashboard name is required."), { status: 422 });
+  const slug = dashboardSlug(input.slug || title);
+  const base = `smartfamilyops-dashboards-${slug}`;
+  let urlPath = base;
+  let suffix = 2;
+  while (existingPaths.includes(urlPath)) urlPath = `${base}-${suffix++}`;
+  return {
+    schema_version: DASHBOARD_SCHEMA_VERSION, owner: DASHBOARD_OWNER, id, source_id: null,
+    title, description: String(input.description ?? "SmartFamilyOps discovery list.").trim(),
+    icon: String(input.icon ?? "mdi:view-dashboard-outline").trim(),
+    population_policy: structuredClone(populationPolicy),
+    url_path: urlPath, view_path: slug, show_in_sidebar: Boolean(input.show_in_sidebar),
+    require_admin: input.require_admin !== false, status: "draft",
+    created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+  };
+}
+
 export function cloneDashboardConfig(sourceConfig, definition) {
   const config = structuredClone(sourceConfig);
   const view = config.views?.[0];

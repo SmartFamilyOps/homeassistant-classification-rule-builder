@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { BATTERY_HEALTH_DASHBOARD, batteryHealthConfig, batteryHealthSurface, findBatteryHealthDashboard, findLegacyBatteryHealthDashboard, migrateBatteryHealthConfig, retargetManagedDashboardCard, upgradeManagedBatteryHealthCard, validDashboardPath } from "../src/dashboard.mjs";
-import { cloneDashboardConfig, dashboardSlug, isCompatibleDashboardConfig, newDashboardDefinition } from "../src/dashboard-definitions.mjs";
+import { cloneDashboardConfig, dashboardSlug, isCompatibleDashboardConfig, newDashboardDefinition, newFreshDashboardDefinition } from "../src/dashboard-definitions.mjs";
 
 test("Battery Health ships Home Assistant-compatible SmartFamilyOps defaults", () => {
   assert.deepEqual(BATTERY_HEALTH_DASHBOARD, {
@@ -97,6 +97,19 @@ test("Dashboard Builder exposes explicit provisioning and the shipped defaults",
   assert.match(html, /id="open-compatible-dashboard"/);
   assert.match(html, /id="save-as-dashboard"/);
   assert.match(script, /api\("dashboards\/save-as"/);
+  assert.match(html, /id="create-dashboard"/);
+  assert.match(script, /api\("dashboards\/create"/);
+});
+
+test("fresh dashboards receive an independent list identity and policy", () => {
+  const policy = { match: "any", conditions: [{ field: "entity_device_class", operator: "equals", value: "battery" }] };
+  const dashboard = newFreshDashboardDefinition({ title: "Garden devices", slug: "garden-devices" }, policy, []);
+  assert.equal(dashboard.title, "Garden devices");
+  assert.equal(dashboard.url_path, "smartfamilyops-dashboards-garden-devices");
+  assert.equal(dashboard.view_path, "garden-devices");
+  assert.equal(dashboard.status, "draft");
+  assert.deepEqual(dashboard.population_policy, policy);
+  assert.notEqual(dashboard.population_policy, policy);
 });
 
 test("Save as new dashboard creates a distinct governed draft identity", () => {

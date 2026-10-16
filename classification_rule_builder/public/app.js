@@ -285,6 +285,43 @@ function showSaveAs() {
   $("#save-as-dialog").showModal();
 }
 
+function showCreateDashboard() {
+  $("#create-title").value = "New discovery list";
+  $("#create-slug").value = "new-discovery-list";
+  $("#create-icon").value = "mdi:view-dashboard-outline";
+  $("#create-description").value = "SmartFamilyOps discovery list.";
+  $("#create-sidebar").checked = false;
+  $("#create-error").hidden = true;
+  $("#create-dashboard-dialog").showModal();
+}
+
+async function confirmCreateDashboard(event) {
+  event.preventDefault();
+  const button = $("#confirm-create-dashboard");
+  button.disabled = true;
+  try {
+    const result = await api("dashboards/create", { method: "POST", body: JSON.stringify({
+      title: $("#create-title").value,
+      slug: $("#create-slug").value,
+      icon: $("#create-icon").value,
+      description: $("#create-description").value,
+      show_in_sidebar: $("#create-sidebar").checked,
+      require_admin: true,
+    }) });
+    $("#create-dashboard-dialog").close();
+    await loadCompatibleDashboards();
+    state.dashboard = state.dashboards.find((dashboard) => dashboard.id === result.definition.id) ?? result.definition;
+    renderDashboardContext();
+    renderCandidatePolicy();
+    renderPreview();
+    renderDashboardEditor();
+    $("#dashboard-message").textContent = "New list dashboard created. Its definition and Home Assistant registration are independent.";
+  } catch (error) {
+    $("#create-error").textContent = error.message;
+    $("#create-error").hidden = false;
+  } finally { button.disabled = false; }
+}
+
 async function confirmSaveAs(event) {
   event.preventDefault();
   const button = $("#confirm-save-as");
@@ -804,6 +841,8 @@ $("#open-compatible-dashboard").addEventListener("click", openCompatibleDashboar
 $("#save-dashboard").addEventListener("click", saveDashboard);
 $("#save-as-dashboard").addEventListener("click", showSaveAs);
 $("#confirm-save-as").addEventListener("click", confirmSaveAs);
+$("#create-dashboard").addEventListener("click", showCreateDashboard);
+$("#confirm-create-dashboard").addEventListener("click", confirmCreateDashboard);
 $("#visit-dashboard").addEventListener("click", () => window.top.location.assign(state.dashboard.url));
 $("#save").addEventListener("click", validateDraft);
 $("#confirm-save").addEventListener("click", (event) => { event.preventDefault(); void publish(); });
