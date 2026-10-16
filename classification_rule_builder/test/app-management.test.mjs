@@ -81,6 +81,16 @@ test("summary groups device and entity totals with active and inactive breakdown
   assert.match(script, /enabledEntities \+ disabledEntities/);
 });
 
+test("the rules workspace exposes the complete Battery Health membership policy", async () => {
+  const html = await readFile(new URL("../public/index.html", import.meta.url), "utf8");
+  assert.match(html, /id="battery-health-scope-title"/);
+  assert.match(html, /entity device_class = battery/);
+  assert.match(html, /entity ID contains <code>battery<\/code>/);
+  assert.match(html, /battery_monitor/);
+  assert.match(html, /battery_ignore/);
+  assert.match(html, /Duplicate sources are hidden/);
+});
+
 test("the container includes the maintained Battery Health dashboard source", async () => {
   const dockerfile = await readFile(new URL("../Dockerfile", import.meta.url), "utf8");
   const card = await readFile(new URL("../dashboard/battery-health-card.jinja", import.meta.url), "utf8");

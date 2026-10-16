@@ -4,6 +4,8 @@ Use the **Web UI** tab to maintain deterministic device-classification rules wit
 
 Use the **Classification Rules** tab to maintain the shared catalogue. The **Dashboard Builder** tab is the configuration home for reusable discovery dashboards that consume the same catalogue.
 
+The **Battery Health discovery scope** panel above the rules makes dashboard population explicit. Automatic candidates have an entity with runtime `device_class = battery` or a registered entity ID containing `battery`; ordered rules, duplicate handling and the `battery_monitor` / `battery_ignore` labels then determine the final membership.
+
 These tabs are inside **Open Web UI** and the app's sidebar page. They do not replace Home Assistant's fixed **Info**, **Documentation**, **Configuration** and **Log** app-management tabs.
 
 Use **Refresh Home Assistant data** to re-read device, entity and area discovery while preserving unpublished rule edits. Use **Open Home Assistant Apps** to review installed versions and run Home Assistant's own update refresh. Use **Reload app interface** to reconnect the ingress UI; the app warns before discarding unpublished edits.

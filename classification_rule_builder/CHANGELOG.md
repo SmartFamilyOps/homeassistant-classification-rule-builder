@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.3
+
+- Surface the complete Battery Health discovery scope above the ordered classification rules.
+- Show that automatic membership starts with battery device-class or battery-named entity evidence, then applies rule, duplicate-source and Home Assistant label decisions.
+
 ## 0.7.2
 
 - Add a tools link for every Battery Health row that opens the matching native Home Assistant device page.

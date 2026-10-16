@@ -53,6 +53,36 @@
       <article class="summary-card simple"><div><strong id="changed-count">—</strong><span>preview changes</span></div></article>
     </section>
 
+    <section class="membership-policy" aria-labelledby="battery-health-scope-title">
+      <div class="membership-policy-heading">
+        <div>
+          <p class="eyebrow">Dashboard population</p>
+          <h2 id="battery-health-scope-title">Battery Health discovery scope</h2>
+        </div>
+        <span class="policy-badge">Managed default</span>
+      </div>
+      <p class="membership-intro">This policy decides which discovered devices enter Battery Health. The ordered rules below classify devices and can explicitly include or exclude them.</p>
+      <div class="membership-flow">
+        <article>
+          <strong>Automatic candidate</strong>
+          <code>entity device_class = battery</code>
+          <span>or the registered entity ID contains <code>battery</code></span>
+        </article>
+        <span class="flow-arrow" aria-hidden="true">→</span>
+        <article>
+          <strong>Rule decision</strong>
+          <span><code>Include</code>, <code>Exclude</code>, or automatic membership</span>
+          <span>Duplicate sources are hidden from Battery Health</span>
+        </article>
+        <span class="flow-arrow" aria-hidden="true">→</span>
+        <article>
+          <strong>Home Assistant label override</strong>
+          <span><code>battery_monitor</code> forces inclusion</span>
+          <span><code>battery_ignore</code> forces exclusion</span>
+        </article>
+      </div>
+    </section>
+
     <section class="workspace">
       <aside>
         <div class="section-heading">

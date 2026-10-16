@@ -21,6 +21,7 @@ The app configuration is organised into two in-app sections:
 - Rejects stale saves when another browser session has changed the catalogue.
 - Groups multiple Home Assistant records that represent one physical asset and marks primary or duplicate sources explicitly.
 - Makes Battery Health dashboard membership an explicit rule outcome: include, exclude, or automatic when a battery entity exists.
+- Shows the complete Battery Health population policy above the rule editor so automatic battery evidence and label overrides are visible rather than hidden in the compiler.
 - Recognises and imports the established SmartFamilyOps Jinja classifier on first run; an unfamiliar template is refused rather than overwritten.
 - Opens Home Assistant's installed-apps page for update checks and app management without granting this app elevated Supervisor permissions.
 - Reloads the app interface on demand and serves frontend assets without browser caching so a newly installed interface appears immediately.
@@ -106,6 +107,12 @@ in the builder rather than hard-coded in the dashboard.
 `battery_monitor` and `battery_ignore` Home Assistant labels remain supported for
 compatibility. Monitor wins as an explicit inclusion; ignore removes an automatic
 or rule-included device. These registry labels are evaluated during publication.
+
+The rules workspace displays this membership precedence above the ordered rules.
+Automatic battery evidence means an entity whose runtime `device_class` is
+`battery`, or a registered entity ID containing `battery`. Rule-level inclusion or
+exclusion and duplicate-source handling are then applied, while `battery_monitor`
+and `battery_ignore` remain explicit Home Assistant label overrides.
 
 The Battery Health dashboard imports `battery_health_devices` from the generated
 device catalogue. Each record contains stable device and entity IDs, registry
