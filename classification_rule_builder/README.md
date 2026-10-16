@@ -120,7 +120,9 @@ metadata, the evaluated function and membership evidence. The dashboard reads
 current states for those IDs when it renders, so offline devices stay listed and
 live battery values do not require republishing.
 
-The Battery Health **Tools** column opens `/config/devices/device/{device_id}`.
+The Battery Health **Edit Device** column opens `/config/devices/device/{device_id}`.
+
+The **Dashboard Builder** tab can open any compatible SmartFamilyOps dashboard and save it as a new governed draft. A draft receives a new UUID, a collision-safe `smartfamilyops-dashboards-*` route, a copied Lovelace configuration, an app-owned manifest, administrator-only access and no sidebar entry by default. Existing compatible dashboards can be renamed and have their description, icon, sidebar visibility and administrator access maintained from the same editor.
 This hands configuration back to Home Assistant's native device page and remains
 valid when a device is renamed because it uses the registry ID rather than the
 display name.

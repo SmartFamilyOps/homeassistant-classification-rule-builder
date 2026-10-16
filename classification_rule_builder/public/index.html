@@ -168,7 +168,7 @@
         <p>Build operational dashboards from Home Assistant discovery data and the shared classification catalogue. Dashboard definitions will reference the rules rather than copying their logic.</p>
       </section>
 
-      <section class="dashboard-builder-grid" aria-label="Dashboard builder design preview">
+      <section class="dashboard-builder-grid" aria-label="Dashboard builder">
         <article>
           <p class="eyebrow">Shared configuration</p>
           <h3>Classification catalogue</h3>
@@ -182,12 +182,36 @@
           <p class="muted"><code>/smartfamilyops-dashboards/battery-health</code> · <code>mdi:battery-sync</code></p>
           <button id="provision-dashboard" type="button" class="secondary small">Install or apply SmartFamilyOps defaults</button>
         </article>
-        <article>
-          <p class="eyebrow">Next capability</p>
-          <h3>Dashboard definitions</h3>
-          <p>Configure columns, filters, sorting, duplicate handling, status presentation and row actions, then preview before publishing.</p>
-          <span class="design-status planned">Planned in SFO-137</span>
+        <article class="dashboard-open-card">
+          <p class="eyebrow">Compatible dashboards</p>
+          <h3>Open dashboard</h3>
+          <label>Dashboard<select id="compatible-dashboard"></select></label>
+          <button id="open-compatible-dashboard" type="button" class="secondary small">Open compatible dashboard</button>
         </article>
+      </section>
+
+      <section id="dashboard-editor" class="dashboard-definition-editor" hidden>
+        <div class="editor-heading">
+          <div><p class="eyebrow">Managed definition</p><h2 id="dashboard-editor-title">Dashboard</h2></div>
+          <span id="dashboard-editor-status" class="design-status">Published</span>
+        </div>
+        <div class="form-grid two">
+          <label>Name<input id="dashboard-title"></label>
+          <label>Icon<input id="dashboard-icon" placeholder="mdi:view-dashboard-outline"></label>
+          <label>Dashboard path<input id="dashboard-url-path" readonly></label>
+          <label>View path<input id="dashboard-view-path" readonly></label>
+        </div>
+        <label>Description<textarea id="dashboard-description" rows="2"></textarea></label>
+        <div class="dashboard-switches">
+          <label class="switch"><input id="dashboard-sidebar" type="checkbox"><span></span>Show in sidebar</label>
+          <label class="switch"><input id="dashboard-admin" type="checkbox"><span></span>Administrators only</label>
+        </div>
+        <div class="dashboard-editor-actions">
+          <button id="save-dashboard" type="button">Save changes</button>
+          <button id="save-as-dashboard" type="button" class="secondary">Save as new dashboard</button>
+          <button id="visit-dashboard" type="button" class="secondary">Open in Home Assistant</button>
+        </div>
+        <p id="dashboard-message" class="muted" aria-live="polite"></p>
       </section>
 
       <section class="configuration-flow" aria-label="Configuration flow">
@@ -203,6 +227,23 @@
       <p id="confirm-copy">The generated Jinja will replace the managed classifier and custom templates will reload.</p>
       <div id="validation-errors" class="errors" hidden></div>
       <div class="dialog-actions"><button value="cancel" class="secondary">Cancel</button><button id="confirm-save" value="default">Publish rules</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="save-as-dialog">
+    <form method="dialog" id="save-as-form">
+      <p class="eyebrow">Governed copy</p>
+      <h2>Save as new dashboard</h2>
+      <p>The source behaviour, presentation, discovery scope and row actions will be copied into a hidden, administrator-only draft.</p>
+      <div class="form-grid two">
+        <label>Name<input id="save-as-title" required></label>
+        <label>Path name<input id="save-as-slug" required></label>
+        <label>Icon<input id="save-as-icon"></label>
+        <label>Description<input id="save-as-description"></label>
+      </div>
+      <label class="switch"><input id="save-as-sidebar" type="checkbox"><span></span>Show draft in sidebar</label>
+      <div id="save-as-error" class="errors" hidden></div>
+      <div class="dialog-actions"><button value="cancel" class="secondary">Cancel</button><button id="confirm-save-as" value="default">Create draft</button></div>
     </form>
   </dialog>
 

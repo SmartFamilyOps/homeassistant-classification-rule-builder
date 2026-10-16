@@ -151,7 +151,7 @@ test("Battery Health dashboard consumes the published device catalogue", async (
 test("Battery Health table keeps icon-only status second, battery third and limits hover provenance to registry-backed cells", async () => {
   const card = await readFile(new URL("../../examples/battery-health-dashboard/card.jinja", import.meta.url), "utf8");
   const header = card.match(/namespace\(text='([^']+)'\)/)?.[1] ?? "";
-  assert.match(header, /^\| # \| Online \| Battery \| Device \| Location \| Manufacturer \| Function \| Tools \| Splunk test \|/);
+  assert.match(header, /^\| # \| Online \| Battery \| Device \| Location \| Manufacturer \| Function \| Edit Device \| Splunk test \|/);
   assert.doesNotMatch(header, /Current mode/);
   assert.match(card, /ha_status_display = '✅' if p\.available_count > 0 else '❌'/);
   assert.doesNotMatch(card, /ha_status_display = '✅ Online'/);

@@ -25,7 +25,7 @@ If a write or reload fails, the complete preceding set is restored and Home Assi
 
 After later app upgrades, startup refreshes only the recognised SmartFamilyOps managed Battery Health card when the complete catalogue publication is present. This delivers presentation fixes without treating user-authored cards as app-owned content.
 
-The Battery Health **Tools** icon opens the matching native Home Assistant device page using its stable registry ID. Use this pattern for other builder-managed views that need to hand users from discovered data to existing Home Assistant configuration.
+The Battery Health **Edit Device** icon opens the matching native Home Assistant device page using its stable registry ID. Use this pattern for other builder-managed views that need to hand users from discovered data to existing Home Assistant configuration.
 
 The app reads Home Assistant's device, entity and area registries. Disabled registered entities are included as classification evidence without enabling them.
 

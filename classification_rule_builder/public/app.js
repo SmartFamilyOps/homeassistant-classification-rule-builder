@@ -8,6 +8,8 @@ const state = {
   dirty: false,
   publicationRequired: false,
   previewPage: 1,
+  dashboards: [],
+  dashboard: null,
 };
 
 const PREVIEW_PAGE_SIZE = 20;
@@ -146,9 +148,106 @@ async function loadDashboardStatus() {
     copy.textContent = result.dashboard
       ? `Installed as “${result.dashboard.title}” with ${result.dashboard.icon || "the default Home Assistant icon"}. Existing user settings are preserved during app updates.`
       : "Not installed yet. The app will create it automatically with the SmartFamilyOps defaults.";
+    await loadCompatibleDashboards();
   } catch (error) {
     copy.textContent = `Dashboard status unavailable: ${error.message}`;
   }
+}
+
+async function loadCompatibleDashboards() {
+  const result = await api("dashboards");
+  state.dashboards = result.dashboards;
+  const select = $("#compatible-dashboard");
+  select.replaceChildren();
+  for (const dashboard of state.dashboards) {
+    const option = document.createElement("option");
+    option.value = dashboard.id;
+    option.textContent = `${dashboard.title} · ${dashboard.status}`;
+    select.append(option);
+  }
+  $("#open-compatible-dashboard").disabled = !state.dashboards.length;
+}
+
+function renderDashboardEditor() {
+  const dashboard = state.dashboard;
+  $("#dashboard-editor").hidden = !dashboard;
+  if (!dashboard) return;
+  $("#dashboard-editor-title").textContent = dashboard.title;
+  $("#dashboard-editor-status").textContent = dashboard.status;
+  $("#dashboard-title").value = dashboard.title;
+  $("#dashboard-icon").value = dashboard.icon;
+  $("#dashboard-url-path").value = dashboard.url_path;
+  $("#dashboard-view-path").value = dashboard.view_path;
+  $("#dashboard-description").value = dashboard.description;
+  $("#dashboard-sidebar").checked = dashboard.show_in_sidebar;
+  $("#dashboard-admin").checked = dashboard.require_admin;
+  $("#dashboard-message").textContent = "Compatible SmartFamilyOps schema version 1.";
+}
+
+function openCompatibleDashboard() {
+  state.dashboard = state.dashboards.find((dashboard) => dashboard.id === $("#compatible-dashboard").value) ?? null;
+  renderDashboardEditor();
+}
+
+function dashboardPayload() {
+  return {
+    id: state.dashboard.id,
+    title: $("#dashboard-title").value,
+    icon: $("#dashboard-icon").value,
+    description: $("#dashboard-description").value,
+    show_in_sidebar: $("#dashboard-sidebar").checked,
+    require_admin: $("#dashboard-admin").checked,
+  };
+}
+
+async function saveDashboard() {
+  const button = $("#save-dashboard");
+  button.disabled = true;
+  try {
+    const result = await api("dashboards/save", { method: "POST", body: JSON.stringify(dashboardPayload()) });
+    state.dashboard = result.definition;
+    $("#dashboard-message").textContent = "Dashboard definition and Home Assistant metadata saved.";
+    await loadCompatibleDashboards();
+    renderDashboardEditor();
+  } catch (error) {
+    $("#dashboard-message").textContent = `Save failed safely: ${error.message}`;
+  } finally { button.disabled = false; }
+}
+
+function showSaveAs() {
+  const source = state.dashboard;
+  $("#save-as-title").value = `Copy of ${source.title}`;
+  $("#save-as-slug").value = `${source.view_path}-copy`;
+  $("#save-as-icon").value = source.icon;
+  $("#save-as-description").value = `Created from ${source.title}`;
+  $("#save-as-sidebar").checked = false;
+  $("#save-as-error").hidden = true;
+  $("#save-as-dialog").showModal();
+}
+
+async function confirmSaveAs(event) {
+  event.preventDefault();
+  const button = $("#confirm-save-as");
+  button.disabled = true;
+  try {
+    const result = await api("dashboards/save-as", { method: "POST", body: JSON.stringify({
+      source_id: state.dashboard.id,
+      title: $("#save-as-title").value,
+      slug: $("#save-as-slug").value,
+      icon: $("#save-as-icon").value,
+      description: $("#save-as-description").value,
+      show_in_sidebar: $("#save-as-sidebar").checked,
+      require_admin: true,
+    }) });
+    $("#save-as-dialog").close();
+    await loadCompatibleDashboards();
+    state.dashboard = state.dashboards.find((dashboard) => dashboard.id === result.definition.id) ?? result.definition;
+    renderDashboardEditor();
+    $("#dashboard-message").textContent = "Draft created. Its configuration, manifest and Home Assistant registration were created automatically.";
+  } catch (error) {
+    $("#save-as-error").textContent = error.message;
+    $("#save-as-error").hidden = false;
+  } finally { button.disabled = false; }
 }
 
 async function provisionDashboard() {
@@ -544,6 +643,11 @@ $("#reload-app").addEventListener("click", () => {
   window.location.reload();
 });
 $("#provision-dashboard").addEventListener("click", provisionDashboard);
+$("#open-compatible-dashboard").addEventListener("click", openCompatibleDashboard);
+$("#save-dashboard").addEventListener("click", saveDashboard);
+$("#save-as-dashboard").addEventListener("click", showSaveAs);
+$("#confirm-save-as").addEventListener("click", confirmSaveAs);
+$("#visit-dashboard").addEventListener("click", () => window.top.location.assign(state.dashboard.url));
 $("#save").addEventListener("click", validateDraft);
 $("#confirm-save").addEventListener("click", (event) => { event.preventDefault(); void publish(); });
 $("#confirm-dialog").addEventListener("close", () => { $("#confirm-save").disabled = false; });

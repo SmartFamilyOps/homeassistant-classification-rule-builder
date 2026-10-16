@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { BATTERY_HEALTH_DASHBOARD, batteryHealthConfig, findBatteryHealthDashboard, findLegacyBatteryHealthDashboard, migrateBatteryHealthConfig, upgradeManagedBatteryHealthCard, validDashboardPath } from "../src/dashboard.mjs";
+import { cloneDashboardConfig, dashboardSlug, isCompatibleDashboardConfig, newDashboardDefinition } from "../src/dashboard-definitions.mjs";
 
 test("Battery Health ships Home Assistant-compatible SmartFamilyOps defaults", () => {
   assert.deepEqual(BATTERY_HEALTH_DASHBOARD, {
@@ -81,4 +82,29 @@ test("Dashboard Builder exposes explicit provisioning and the shipped defaults",
   assert.match(html, /mdi:battery-sync/);
   assert.match(html, /smartfamilyops-dashboards\/battery-health/);
   assert.match(script, /api\("dashboard\/provision"/);
+  assert.match(html, /id="open-compatible-dashboard"/);
+  assert.match(html, /id="save-as-dashboard"/);
+  assert.match(script, /api\("dashboards\/save-as"/);
+});
+
+test("Save as new dashboard creates a distinct governed draft identity", () => {
+  const source = { id: "battery-health", title: "Battery Health", icon: "mdi:battery-sync" };
+  const draft = newDashboardDefinition(source, { title: "Copy of Battery Health", slug: "battery-health-copy" }, ["smartfamilyops-dashboards-battery-health-copy"]);
+  assert.equal(draft.url_path, "smartfamilyops-dashboards-battery-health-copy-2");
+  assert.equal(draft.view_path, "battery-health-copy");
+  assert.equal(draft.status, "draft");
+  assert.equal(draft.show_in_sidebar, false);
+  assert.equal(draft.require_admin, true);
+  assert.equal(dashboardSlug("  Garden Cameras! "), "garden-cameras");
+});
+
+test("dashboard cloning preserves presentation while replacing identity", () => {
+  const source = { views: [{ title: "Battery Health", path: "battery-health", cards: [{ type: "entities", entities: ["sensor.one"] }] }] };
+  const definition = newDashboardDefinition({ id: "battery-health", title: "Battery Health" }, { title: "Garden Power", slug: "garden-power" });
+  const clone = cloneDashboardConfig(source, definition);
+  assert.equal(clone.views[0].title, "Garden Power");
+  assert.equal(clone.views[0].path, "garden-power");
+  assert.deepEqual(clone.views[0].cards, source.views[0].cards);
+  assert.equal(isCompatibleDashboardConfig(clone, definition.id), true);
+  assert.equal(source.views[0].title, "Battery Health");
 });

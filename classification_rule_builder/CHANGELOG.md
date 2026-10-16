@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.8.0
+
+- Open app-owned compatible dashboard definitions in the Dashboard Builder and maintain their Home Assistant title, icon, description, sidebar and administrator settings.
+- Save a compatible dashboard as a new hidden, administrator-only draft with a new UUID, collision-safe SmartFamilyOps route, cloned Lovelace configuration and app-owned manifest.
+- Mark managed Lovelace configuration with a versioned SmartFamilyOps ownership contract and roll back incomplete dashboard creation or editing.
+- Rename the Battery Health **Tools** column to **Edit Device**.
+
 ## 0.7.3
 
 - Surface the complete Battery Health discovery scope above the ordered classification rules.

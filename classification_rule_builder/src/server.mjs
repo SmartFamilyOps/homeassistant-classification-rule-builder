@@ -4,6 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createDashboard, deleteDashboard, discoverDevices, listDashboards, loadDashboardConfig, reloadCustomTemplates, saveDashboardConfig, updateDashboard, validateTemplate } from "./home-assistant.mjs";
 import { BATTERY_HEALTH_DASHBOARD, batteryHealthConfig, findBatteryHealthDashboard, findLegacyBatteryHealthDashboard, migrateBatteryHealthConfig, upgradeManagedBatteryHealthCard, validDashboardPath } from "./dashboard.mjs";
+import { batteryHealthDefinition, cloneDashboardConfig, isCompatibleDashboardConfig, newDashboardDefinition, readDashboardDefinitions, saveDashboardDefinition } from "./dashboard-definitions.mjs";
 import { buildDeviceCatalogue, generateDeviceCatalogueJinja } from "./device-catalogue.mjs";
 import { catalogueRevision, classifyDevice, FIELD_DEFINITIONS, generateJinja, OPERATORS, validateCatalogue } from "./rules.mjs";
 import { pathsForStatus, pruneBackups, publicationRequired, readCatalogue, restoreFiles, saveFiles } from "./storage.mjs";
@@ -100,6 +101,76 @@ async function provisionDashboard({ alignExisting = false } = {}) {
   return { created: true, aligned: true, ...await dashboardStatus() };
 }
 
+async function compatibleDashboardDefinitions() {
+  const dashboards = await listDashboards();
+  const canonical = findBatteryHealthDashboard(dashboards);
+  const stored = await readDashboardDefinitions();
+  const definitions = new Map(stored.map((definition) => [definition.id, definition]));
+  if (canonical && !definitions.has("battery-health")) definitions.set("battery-health", batteryHealthDefinition(canonical));
+  return [...definitions.values()].filter((definition) => dashboards.some((dashboard) => dashboard.url_path === definition.url_path))
+    .map((definition) => ({ ...definition, dashboard: dashboards.find((dashboard) => dashboard.url_path === definition.url_path), url: `/${definition.url_path}/${definition.view_path}` }));
+}
+
+async function saveAsDashboard(payload) {
+  const definitions = await compatibleDashboardDefinitions();
+  const source = definitions.find((definition) => definition.id === payload.source_id);
+  if (!source) throw Object.assign(new Error("Select a compatible source dashboard."), { status: 404 });
+  const dashboards = await listDashboards();
+  const sourceConfig = await loadDashboardConfig(source.url_path);
+  if (source.id !== "battery-health" && !isCompatibleDashboardConfig(sourceConfig, source.id)) {
+    throw Object.assign(new Error("The source dashboard no longer carries the SmartFamilyOps compatibility marker."), { status: 409 });
+  }
+  const definition = newDashboardDefinition(source, payload, dashboards.map((dashboard) => dashboard.url_path));
+  const config = cloneDashboardConfig(sourceConfig, definition);
+  const created = await createDashboard({
+    title: definition.title, icon: definition.icon, url_path: definition.url_path,
+    show_in_sidebar: definition.show_in_sidebar, require_admin: definition.require_admin,
+  });
+  try {
+    await saveDashboardConfig(definition.url_path, config);
+    await saveDashboardDefinition(definition);
+  } catch (error) {
+    const dashboardId = created?.id ?? (await listDashboards()).find((dashboard) => dashboard.url_path === definition.url_path)?.id;
+    if (dashboardId) try { await deleteDashboard(dashboardId); } catch {}
+    throw new Error(`The draft could not be created; its incomplete Home Assistant dashboard was removed. ${error.message}`);
+  }
+  return { created: true, definition: { ...definition, url: `/${definition.url_path}/${definition.view_path}` } };
+}
+
+async function saveDashboardChanges(payload) {
+  const definitions = await compatibleDashboardDefinitions();
+  const current = definitions.find((definition) => definition.id === payload.id);
+  if (!current) throw Object.assign(new Error("The compatible dashboard was not found."), { status: 404 });
+  const dashboard = current.dashboard;
+  const updated = {
+    ...current,
+    title: String(payload.title ?? current.title).trim(),
+    description: String(payload.description ?? current.description).trim(),
+    icon: String(payload.icon ?? current.icon).trim(),
+    show_in_sidebar: Boolean(payload.show_in_sidebar),
+    require_admin: Boolean(payload.require_admin),
+    updated_at: new Date().toISOString(),
+  };
+  if (!updated.title) throw Object.assign(new Error("Dashboard name is required."), { status: 422 });
+  const originalConfig = await loadDashboardConfig(current.url_path);
+  const config = structuredClone(originalConfig);
+  const view = config.views?.find((candidate) => candidate.path === current.view_path) ?? config.views?.[0];
+  if (!view) throw Object.assign(new Error("The dashboard has no editable view."), { status: 422 });
+  view.title = updated.title;
+  view.icon = updated.icon;
+  config.smartfamilyops_dashboard = { schema_version: 1, owner: "SmartFamilyOps Discovery Dashboard Builder", definition_id: updated.id };
+  await updateDashboard(dashboard.id, { title: updated.title, icon: updated.icon, show_in_sidebar: updated.show_in_sidebar, require_admin: updated.require_admin });
+  try {
+    await saveDashboardConfig(updated.url_path, config);
+    await saveDashboardDefinition(updated);
+  } catch (error) {
+    try { await saveDashboardConfig(current.url_path, originalConfig); } catch {}
+    try { await updateDashboard(dashboard.id, { title: current.title, icon: current.icon, show_in_sidebar: current.show_in_sidebar, require_admin: current.require_admin }); } catch {}
+    throw new Error(`Dashboard changes were rolled back. ${error.message}`);
+  }
+  return { saved: true, definition: { ...updated, url: `/${updated.url_path}/${updated.view_path}` } };
+}
+
 async function handle(request, response) {
   const url = new URL(request.url, "http://classification-rule-builder.local");
   if (request.method === "GET" && (url.pathname === "/" || url.pathname.endsWith("/index.html"))) return serveFile(response, "index.html", "text/html; charset=utf-8");
@@ -115,6 +186,9 @@ async function handle(request, response) {
     return json(response, 200, { devices });
   }
   if (request.method === "GET" && url.pathname.endsWith("/api/dashboard")) return json(response, 200, await dashboardStatus());
+  if (request.method === "GET" && url.pathname.endsWith("/api/dashboards")) return json(response, 200, { dashboards: await compatibleDashboardDefinitions() });
+  if (request.method === "POST" && url.pathname.endsWith("/api/dashboards/save-as")) return json(response, 201, await saveAsDashboard(await body(request)));
+  if (request.method === "POST" && url.pathname.endsWith("/api/dashboards/save")) return json(response, 200, await saveDashboardChanges(await body(request)));
   if (request.method === "POST" && url.pathname.endsWith("/api/dashboard/provision")) {
     return json(response, 200, await provisionDashboard({ alignExisting: true }));
   }

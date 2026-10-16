@@ -19,6 +19,11 @@ export function validDashboardPath(urlPath) {
 
 export function batteryHealthConfig(content) {
   return {
+    smartfamilyops_dashboard: {
+      schema_version: 1,
+      owner: "SmartFamilyOps Discovery Dashboard Builder",
+      definition_id: "battery-health",
+    },
     views: [{
       title: BATTERY_HEALTH_DASHBOARD.title,
       path: BATTERY_HEALTH_DASHBOARD.view_path,
@@ -63,6 +68,13 @@ export function upgradeManagedBatteryHealthCard(config, content) {
       card.content = content;
       changed = true;
     }
+  }
+  if (changed) {
+    upgraded.smartfamilyops_dashboard = {
+      schema_version: 1,
+      owner: "SmartFamilyOps Discovery Dashboard Builder",
+      definition_id: "battery-health",
+    };
   }
   return { config: upgraded, changed };
 }
