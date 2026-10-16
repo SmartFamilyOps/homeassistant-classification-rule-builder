@@ -97,6 +97,10 @@ export async function saveDashboardConfig(urlPath, config) {
   return websocketSession((call) => call("lovelace/config/save", { url_path: urlPath, config }));
 }
 
+export async function loadDashboardConfig(urlPath) {
+  return websocketSession((call) => call("lovelace/config", { url_path: urlPath }));
+}
+
 const cameraTerms = ["person", "vehicle", "animal", "snapshot", "record", "stream", "privacy", "pir"];
 
 export function summariseDeviceEntities(deviceEntities, statesById) {

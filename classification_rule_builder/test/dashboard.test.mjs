@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { BATTERY_HEALTH_DASHBOARD, batteryHealthConfig, findBatteryHealthDashboard, validDashboardPath } from "../src/dashboard.mjs";
+import { BATTERY_HEALTH_DASHBOARD, batteryHealthConfig, findBatteryHealthDashboard, findLegacyBatteryHealthDashboard, migrateBatteryHealthConfig, validDashboardPath } from "../src/dashboard.mjs";
 
 test("Battery Health ships Home Assistant-compatible SmartFamilyOps defaults", () => {
   assert.deepEqual(BATTERY_HEALTH_DASHBOARD, {
@@ -26,8 +26,24 @@ test("new Battery Health dashboards contain the maintained card", () => {
 
 test("existing canonical dashboard is detected without touching compatibility copies", () => {
   const canonical = { id: "canonical", url_path: "smartfamilyops-dashboards" };
-  const dashboards = [{ id: "old", url_path: "battery-health" }, canonical];
+  const dashboards = [{ id: "old", url_path: "smartfamilyops-dashboard" }, canonical];
   assert.equal(findBatteryHealthDashboard(dashboards), canonical);
+  assert.equal(findLegacyBatteryHealthDashboard(dashboards)?.id, "old");
+});
+
+test("legacy dashboard content is copied while only its route-facing view path changes", () => {
+  const config = {
+    title: "preserved",
+    views: [{
+      title: "Battery Health",
+      path: "SmartFamilyOps-battery-health",
+      cards: [{ type: "markdown", content: "custom user card" }],
+    }],
+  };
+  const migrated = migrateBatteryHealthConfig(config, "smartfamilyops-dashboard");
+  assert.equal(migrated.views[0].path, "battery-health");
+  assert.equal(migrated.views[0].cards[0].content, "custom user card");
+  assert.equal(config.views[0].path, "SmartFamilyOps-battery-health", "migration must not mutate the source dashboard config");
 });
 
 test("Dashboard Builder exposes explicit provisioning and the shipped defaults", async () => {

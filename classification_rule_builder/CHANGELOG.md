@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.1
+
+- Migrate the earlier `/smartfamilyops-dashboard/SmartFamilyOps-battery-health` route to `/smartfamilyops-dashboards/battery-health` by copying the existing dashboard configuration before removing the legacy registration.
+- Roll back the new dashboard if its copied configuration cannot be saved, leaving the legacy dashboard unchanged.
+
 ## 0.6.0
 
 - Rename the app to **SmartFamilyOps Discovery Dashboard Builder** while retaining the existing technical slug and managed-file locations.

@@ -2,8 +2,8 @@ import http from "node:http";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { createDashboard, deleteDashboard, discoverDevices, listDashboards, reloadCustomTemplates, saveDashboardConfig, updateDashboard, validateTemplate } from "./home-assistant.mjs";
-import { BATTERY_HEALTH_DASHBOARD, batteryHealthConfig, findBatteryHealthDashboard, validDashboardPath } from "./dashboard.mjs";
+import { createDashboard, deleteDashboard, discoverDevices, listDashboards, loadDashboardConfig, reloadCustomTemplates, saveDashboardConfig, updateDashboard, validateTemplate } from "./home-assistant.mjs";
+import { BATTERY_HEALTH_DASHBOARD, batteryHealthConfig, findBatteryHealthDashboard, findLegacyBatteryHealthDashboard, migrateBatteryHealthConfig, validDashboardPath } from "./dashboard.mjs";
 import { catalogueRevision, classifyDevice, FIELD_DEFINITIONS, generateJinja, OPERATORS, validateCatalogue } from "./rules.mjs";
 import { pathsForStatus, pruneBackups, readCatalogue, restoreFiles, saveFiles } from "./storage.mjs";
 
@@ -41,7 +41,30 @@ function dashboardMetadata({ creating = false } = {}) {
 
 async function dashboardStatus() {
   const dashboards = await listDashboards();
-  return { defaults: BATTERY_HEALTH_DASHBOARD, dashboard: findBatteryHealthDashboard(dashboards) };
+  return {
+    defaults: BATTERY_HEALTH_DASHBOARD,
+    dashboard: findBatteryHealthDashboard(dashboards),
+    legacy_dashboard: findLegacyBatteryHealthDashboard(dashboards),
+  };
+}
+
+async function migrateLegacyDashboard(legacyDashboard) {
+  const existingConfig = await loadDashboardConfig(legacyDashboard.url_path);
+  const created = await createDashboard(dashboardMetadata({ creating: true }));
+  try {
+    await saveDashboardConfig(
+      BATTERY_HEALTH_DASHBOARD.url_path,
+      migrateBatteryHealthConfig(existingConfig, legacyDashboard.url_path),
+    );
+  } catch (error) {
+    const dashboardId = created?.id ?? findBatteryHealthDashboard(await listDashboards())?.id;
+    if (dashboardId) {
+      try { await deleteDashboard(dashboardId); } catch {}
+    }
+    throw new Error(`The legacy dashboard could not be migrated; it remains unchanged. ${error.message}`);
+  }
+  await deleteDashboard(legacyDashboard.id);
+  return { migrated: true, created: true, aligned: true, ...await dashboardStatus() };
 }
 
 async function provisionDashboard({ alignExisting = false } = {}) {
@@ -51,6 +74,7 @@ async function provisionDashboard({ alignExisting = false } = {}) {
     if (alignExisting) await updateDashboard(status.dashboard.id, dashboardMetadata());
     return { created: false, aligned: alignExisting, ...await dashboardStatus() };
   }
+  if (status.legacy_dashboard) return migrateLegacyDashboard(status.legacy_dashboard);
   const created = await createDashboard(dashboardMetadata({ creating: true }));
   try {
     const content = await readFile(dashboardCardPath, "utf8");
