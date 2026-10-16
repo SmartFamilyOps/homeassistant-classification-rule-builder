@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { BATTERY_HEALTH_DASHBOARD, batteryHealthConfig, batteryHealthHeaderCard, findBatteryHealthDashboard, findLegacyBatteryHealthDashboard, migrateBatteryHealthConfig, retargetManagedDashboardCard, upgradeManagedBatteryHealthCard, validDashboardPath } from "../src/dashboard.mjs";
+import { BATTERY_HEALTH_DASHBOARD, batteryHealthConfig, batteryHealthSurface, findBatteryHealthDashboard, findLegacyBatteryHealthDashboard, migrateBatteryHealthConfig, retargetManagedDashboardCard, upgradeManagedBatteryHealthCard, validDashboardPath } from "../src/dashboard.mjs";
 import { cloneDashboardConfig, dashboardSlug, isCompatibleDashboardConfig, newDashboardDefinition } from "../src/dashboard-definitions.mjs";
 
 test("Battery Health ships Home Assistant-compatible SmartFamilyOps defaults", () => {
@@ -22,8 +22,8 @@ test("new Battery Health dashboards contain the maintained card", () => {
   const config = batteryHealthConfig("# managed card");
   assert.equal(config.views[0].path, "battery-health");
   assert.equal(config.views[0].icon, "mdi:battery-sync");
-  assert.deepEqual(config.views[0].cards, [batteryHealthHeaderCard(), { type: "markdown", content: "# managed card" }]);
-  assert.equal(config.views[0].cards[0].custom_fields.context, "BATTERY HEALTH");
+  assert.deepEqual(config.views[0].cards, [batteryHealthSurface("# managed card")]);
+  assert.equal(config.views[0].cards[0].cards[0].custom_fields.context, "BATTERY HEALTH");
 });
 
 test("existing canonical dashboard is detected without touching compatibility copies", () => {
@@ -56,9 +56,9 @@ test("the managed legacy card is upgraded without replacing user cards", () => {
   ] }] };
   const result = upgradeManagedBatteryHealthCard(config, "new managed card");
   assert.equal(result.changed, true);
-  assert.equal(result.config.views[0].cards[0].smart_family_ops_brand_header, true);
-  assert.equal(result.config.views[0].cards[1].content, "new managed card");
-  assert.deepEqual(result.config.views[0].cards[2], config.views[0].cards[1]);
+  assert.equal(result.config.views[0].cards[0].smartfamilyops_managed_surface, true);
+  assert.equal(result.config.views[0].cards[0].cards[1].content, "new managed card");
+  assert.deepEqual(result.config.views[0].cards[1], config.views[0].cards[1]);
   assert.equal(config.views[0].cards[0].content, legacy, "upgrade must not mutate the loaded configuration");
 });
 
@@ -66,8 +66,9 @@ test("managed Battery Health branding is refreshed without duplicating the heade
   const oldHeader = { type: "custom:button-card", smart_family_ops_brand_header: true, custom_fields: { context: "OLD" } };
   const managed = "{# SmartFamilyOps managed Battery Health card #}\n{% from 'smartfamilyops_device_catalogue.jinja' import dashboard_devices -%}";
   const result = upgradeManagedBatteryHealthCard({ views: [{ cards: [oldHeader, { type: "markdown", content: managed }] }] }, managed);
-  assert.equal(result.config.views[0].cards.filter((card) => card.smart_family_ops_brand_header).length, 1);
-  assert.equal(result.config.views[0].cards[0].custom_fields.context, "BATTERY HEALTH");
+  assert.equal(result.config.views[0].cards.length, 1);
+  assert.equal(result.config.views[0].cards[0].cards.filter((card) => card.smart_family_ops_brand_header).length, 1);
+  assert.equal(result.config.views[0].cards[0].cards[0].custom_fields.context, "BATTERY HEALTH");
 });
 
 test("the published device-catalogue card is recognised on later app upgrades", () => {
@@ -75,8 +76,8 @@ test("the published device-catalogue card is recognised on later app upgrades", 
   const config = { views: [{ cards: [{ type: "markdown", content: previousManagedCard }] }] };
   const result = upgradeManagedBatteryHealthCard(config, "new managed card");
   assert.equal(result.changed, true);
-  assert.equal(result.config.views[0].cards[0].smart_family_ops_brand_header, true);
-  assert.equal(result.config.views[0].cards[1].content, "new managed card");
+  assert.equal(result.config.views[0].cards[0].smartfamilyops_managed_surface, true);
+  assert.equal(result.config.views[0].cards[0].cards[1].content, "new managed card");
 });
 
 test("unrecognised custom markdown is preserved", () => {
@@ -124,8 +125,8 @@ test("dashboard cloning preserves presentation while replacing identity", () => 
 
 test("managed cards are retargeted to the dashboard definition identity", () => {
   const content = "{# SmartFamilyOps managed Battery Health card #}\n{% from 'smartfamilyops_device_catalogue.jinja' import battery_health_devices -%}\n{% set battery_health_devices_fn = battery_health_devices | as_function -%}\n{% set catalogued_devices = battery_health_devices_fn() -%}";
-  const result = retargetManagedDashboardCard({ views: [{ cards: [{ type: "markdown", content }] }] }, "garden-power");
+  const result = retargetManagedDashboardCard({ views: [{ cards: [batteryHealthSurface(content)] }] }, "garden-power");
   assert.equal(result.changed, true);
-  assert.match(result.config.views[0].cards[0].content, /import dashboard_devices/);
-  assert.match(result.config.views[0].cards[0].content, /dashboard_devices_fn\('garden-power'\)/);
+  assert.match(result.config.views[0].cards[0].cards[1].content, /import dashboard_devices/);
+  assert.match(result.config.views[0].cards[0].cards[1].content, /dashboard_devices_fn\('garden-power'\)/);
 });

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.10.3
+
+- Keep the branded header and full-width Battery Health table inside one managed vertical stack so Home Assistant panel views render both together.
+- Normalise the temporary two-card 0.10.2 layout automatically while preserving unrelated user-authored cards.
+- Retarget managed catalogue selectors inside nested stack cards when compatible dashboards are copied.
+
 ## 0.10.2
 
 - Give Battery Health the same compact SmartFamilyOps brand header, transparent logo, typography, palette and surface treatment as Front Door Control.

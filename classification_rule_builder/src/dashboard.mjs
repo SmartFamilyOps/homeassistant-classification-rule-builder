@@ -71,6 +71,26 @@ export function batteryHealthHeaderCard() {
   };
 }
 
+export function batteryHealthSurface(content) {
+  return {
+    type: "vertical-stack",
+    smartfamilyops_managed_surface: true,
+    cards: [batteryHealthHeaderCard(), { type: "markdown", content }],
+  };
+}
+
+function isManagedBatteryHealthCard(card) {
+  return card?.type === "markdown" && typeof card.content === "string" && (
+    card.content.includes("SmartFamilyOps managed Battery Health card")
+      || (card.content.includes("Battery & Power Observability")
+        && card.content.includes("smartfamilyops_device_classification.jinja")
+        && card.content.includes("for s in states.sensor"))
+      || (card.content.includes("Battery & Power Observability")
+        && card.content.includes("smartfamilyops_device_catalogue.jinja")
+        && (card.content.includes("battery_health_devices") || card.content.includes("dashboard_devices")))
+  );
+}
+
 export function validDashboardPath(urlPath) {
   return typeof urlPath === "string"
     && /^[a-z0-9]+(?:-[a-z0-9]+)+$/.test(urlPath);
@@ -87,7 +107,7 @@ export function batteryHealthConfig(content) {
       title: BATTERY_HEALTH_DASHBOARD.title,
       path: BATTERY_HEALTH_DASHBOARD.view_path,
       icon: BATTERY_HEALTH_DASHBOARD.icon,
-      cards: [batteryHealthHeaderCard(), { type: "markdown", content }],
+      cards: [batteryHealthSurface(content)],
     }],
   };
 }
@@ -97,20 +117,23 @@ export function retargetManagedDashboardCard(config, definitionId) {
   let changed = false;
   let managed = false;
   const selectorPattern = /{% from 'smartfamilyops_device_catalogue\.jinja' import (?:battery_health_devices|dashboard_devices) -%}\r?\n{% set (?:battery_health_devices_fn|dashboard_devices_fn) = (?:battery_health_devices|dashboard_devices) \| as_function -%}\r?\n{% set catalogued_devices = (?:battery_health_devices_fn\(\)|dashboard_devices_fn\('[^']+'\)) -%}/;
-  for (const view of (updated.views ?? [])) {
-    for (const card of (view.cards ?? [])) {
-      if (card.type !== "markdown" || typeof card.content !== "string") continue;
-      const isManagedCard = card.content.includes("SmartFamilyOps managed Battery Health card")
-        || card.content.includes("smartfamilyops_device_catalogue.jinja");
-      if (!isManagedCard) continue;
-      const replacement = `{% from 'smartfamilyops_device_catalogue.jinja' import dashboard_devices -%}\n{% set dashboard_devices_fn = dashboard_devices | as_function -%}\n{% set catalogued_devices = dashboard_devices_fn('${definitionId}') -%}`;
-      if (!selectorPattern.test(card.content)) continue;
-      managed = true;
-      const next = card.content.replace(selectorPattern, replacement);
-      changed ||= next !== card.content;
-      card.content = next;
+  function retargetCards(cards) {
+    for (const card of (cards ?? [])) {
+      if (card.type === "markdown" && typeof card.content === "string") {
+        const isManagedCard = card.content.includes("SmartFamilyOps managed Battery Health card")
+          || card.content.includes("smartfamilyops_device_catalogue.jinja");
+        if (isManagedCard && selectorPattern.test(card.content)) {
+          const replacement = `{% from 'smartfamilyops_device_catalogue.jinja' import dashboard_devices -%}\n{% set dashboard_devices_fn = dashboard_devices | as_function -%}\n{% set catalogued_devices = dashboard_devices_fn('${definitionId}') -%}`;
+          managed = true;
+          const next = card.content.replace(selectorPattern, replacement);
+          changed ||= next !== card.content;
+          card.content = next;
+        }
+      }
+      if (Array.isArray(card.cards)) retargetCards(card.cards);
     }
   }
+  for (const view of (updated.views ?? [])) retargetCards(view.cards);
   if (managed) updated.smartfamilyops_dashboard = { schema_version: 1, owner: "SmartFamilyOps Discovery Dashboard Builder", definition_id: definitionId };
   return { config: updated, changed, managed };
 }
@@ -137,31 +160,25 @@ export function upgradeManagedBatteryHealthCard(config, content) {
   const upgraded = structuredClone(config);
   let changed = false;
   for (const view of (upgraded.views ?? [])) {
-    let managedCardIndex = -1;
-    for (const [index, card] of (view.cards ?? []).entries()) {
-      if (card.type !== "markdown" || typeof card.content !== "string") continue;
-      const isManagedCard = card.content.includes("SmartFamilyOps managed Battery Health card")
-        || (card.content.includes("Battery & Power Observability")
-          && card.content.includes("smartfamilyops_device_classification.jinja")
-          && card.content.includes("for s in states.sensor"))
-        || (card.content.includes("Battery & Power Observability")
-          && card.content.includes("smartfamilyops_device_catalogue.jinja")
-          && (card.content.includes("battery_health_devices") || card.content.includes("dashboard_devices")));
-      if (!isManagedCard) continue;
-      card.content = content;
+    const cards = view.cards ?? [];
+    const surfaceIndex = cards.findIndex((card) => card?.smartfamilyops_managed_surface === true);
+    if (surfaceIndex >= 0 && cards[surfaceIndex].cards?.some(isManagedBatteryHealthCard)) {
+      cards[surfaceIndex] = batteryHealthSurface(content);
       changed = true;
-      managedCardIndex = index;
+      continue;
     }
-    if (managedCardIndex >= 0) {
-      const headerIndex = view.cards.findIndex((card) => card?.smart_family_ops_brand_header === true);
-      const header = batteryHealthHeaderCard();
-      if (headerIndex >= 0) {
-        view.cards[headerIndex] = header;
-      } else {
-        view.cards.splice(managedCardIndex, 0, header);
-      }
-      changed = true;
+
+    const managedCardIndex = cards.findIndex(isManagedBatteryHealthCard);
+    if (managedCardIndex < 0) continue;
+    const headerIndex = cards.findIndex((card) => card?.smart_family_ops_brand_header === true);
+    const insertAt = Math.min(managedCardIndex, headerIndex >= 0 ? headerIndex : managedCardIndex);
+    const normalisedCards = [];
+    for (let index = 0; index < cards.length; index += 1) {
+      if (index === insertAt) normalisedCards.push(batteryHealthSurface(content));
+      if (index !== managedCardIndex && index !== headerIndex) normalisedCards.push(cards[index]);
     }
+    view.cards = normalisedCards;
+    changed = true;
   }
   if (changed) {
     upgraded.smartfamilyops_dashboard = {
