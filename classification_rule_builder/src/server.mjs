@@ -2,11 +2,13 @@ import http from "node:http";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { discoverDevices, reloadCustomTemplates, validateTemplate } from "./home-assistant.mjs";
+import { createDashboard, deleteDashboard, discoverDevices, listDashboards, reloadCustomTemplates, saveDashboardConfig, updateDashboard, validateTemplate } from "./home-assistant.mjs";
+import { BATTERY_HEALTH_DASHBOARD, batteryHealthConfig, findBatteryHealthDashboard, validDashboardPath } from "./dashboard.mjs";
 import { catalogueRevision, classifyDevice, FIELD_DEFINITIONS, generateJinja, OPERATORS, validateCatalogue } from "./rules.mjs";
 import { pathsForStatus, pruneBackups, readCatalogue, restoreFiles, saveFiles } from "./storage.mjs";
 
 const publicDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../public");
+const dashboardCardPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../dashboard/battery-health-card.jinja");
 const port = Number(process.env.PORT ?? "8099");
 const maximumBodyBytes = 1_000_000;
 
@@ -30,6 +32,39 @@ async function serveFile(response, name, type) {
   response.end(content);
 }
 
+function dashboardMetadata({ creating = false } = {}) {
+  const { title, icon, url_path, show_in_sidebar, require_admin } = BATTERY_HEALTH_DASHBOARD;
+  return creating
+    ? { title, icon, url_path, show_in_sidebar, require_admin }
+    : { title, icon, show_in_sidebar, require_admin };
+}
+
+async function dashboardStatus() {
+  const dashboards = await listDashboards();
+  return { defaults: BATTERY_HEALTH_DASHBOARD, dashboard: findBatteryHealthDashboard(dashboards) };
+}
+
+async function provisionDashboard({ alignExisting = false } = {}) {
+  if (!validDashboardPath(BATTERY_HEALTH_DASHBOARD.url_path)) throw new Error("The managed dashboard path is invalid; Home Assistant requires a lowercase path containing a hyphen.");
+  const status = await dashboardStatus();
+  if (status.dashboard) {
+    if (alignExisting) await updateDashboard(status.dashboard.id, dashboardMetadata());
+    return { created: false, aligned: alignExisting, ...await dashboardStatus() };
+  }
+  const created = await createDashboard(dashboardMetadata({ creating: true }));
+  try {
+    const content = await readFile(dashboardCardPath, "utf8");
+    await saveDashboardConfig(BATTERY_HEALTH_DASHBOARD.url_path, batteryHealthConfig(content));
+  } catch (error) {
+    const dashboardId = created?.id ?? findBatteryHealthDashboard(await listDashboards())?.id;
+    if (dashboardId) {
+      try { await deleteDashboard(dashboardId); } catch {}
+    }
+    throw new Error(`Dashboard content could not be installed; the incomplete dashboard was removed. ${error.message}`);
+  }
+  return { created: true, aligned: true, ...await dashboardStatus() };
+}
+
 async function handle(request, response) {
   const url = new URL(request.url, "http://classification-rule-builder.local");
   if (request.method === "GET" && (url.pathname === "/" || url.pathname.endsWith("/index.html"))) return serveFile(response, "index.html", "text/html; charset=utf-8");
@@ -41,6 +76,10 @@ async function handle(request, response) {
   if (request.method === "GET" && url.pathname.endsWith("/api/discovery")) {
     const devices = await discoverDevices();
     return json(response, 200, { devices });
+  }
+  if (request.method === "GET" && url.pathname.endsWith("/api/dashboard")) return json(response, 200, await dashboardStatus());
+  if (request.method === "POST" && url.pathname.endsWith("/api/dashboard/provision")) {
+    return json(response, 200, await provisionDashboard({ alignExisting: true }));
   }
   if (request.method === "POST" && url.pathname.endsWith("/api/validate")) {
     const payload = await body(request);
@@ -84,4 +123,12 @@ const server = http.createServer((request, response) => {
   });
 });
 
-server.listen(port, "0.0.0.0", () => console.log(`[builder] listening on ${port}`));
+server.listen(port, "0.0.0.0", async () => {
+  console.log(`[builder] listening on ${port}`);
+  try {
+    const result = await provisionDashboard();
+    console.log(`[builder] Battery Health dashboard ${result.created ? "created with SmartFamilyOps defaults" : "already present; existing user settings preserved"}.`);
+  } catch (error) {
+    console.error(`[builder] Battery Health dashboard provisioning skipped: ${error.message}`);
+  }
+});

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.0
+
+- Provision the Battery Health dashboard on first app start with the shipped SmartFamilyOps title, `mdi:battery-sync` icon and canonical route.
+- Preserve an existing dashboard during app starts and upgrades.
+- Add a Dashboard Builder action that reapplies the shipped metadata without replacing existing cards.
+- Keep the Home Assistant-compatible `smartfamilyops-dashboard` URL key because custom dashboard keys must contain a hyphen.
+
 ## 0.4.4
 
 - Replace the unsuccessful in-app Supervisor update check with direct navigation to Home Assistant's installed-apps page.

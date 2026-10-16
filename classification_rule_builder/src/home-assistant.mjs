@@ -17,6 +17,34 @@ async function request(path, options = {}) {
   return body ? JSON.parse(body) : null;
 }
 
+async function websocketSession(callback) {
+  const socket = new WebSocket(HA_WS_URL);
+  await new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => reject(new Error("Home Assistant WebSocket connection timed out.")), 15_000);
+    socket.addEventListener("open", () => { clearTimeout(timeout); resolve(); }, { once: true });
+    socket.addEventListener("error", () => { clearTimeout(timeout); reject(new Error("Cannot connect to Home Assistant WebSocket.")); }, { once: true });
+  });
+  try {
+    await receive(socket);
+    socket.send(JSON.stringify({ type: "auth", access_token: HA_TOKEN }));
+    const auth = await receive(socket);
+    if (auth.type !== "auth_ok") throw new Error("Home Assistant WebSocket authentication failed.");
+    let id = 0;
+    return await callback(async (type, fields = {}) => {
+      const command = { id: ++id, type, ...fields };
+      socket.send(JSON.stringify(command));
+      const response = await receive(socket);
+      if (!response.success) {
+        const detail = response.error?.message || response.error?.code || "unknown error";
+        throw new Error(`Home Assistant WebSocket request failed: ${type}: ${detail}.`);
+      }
+      return response.result;
+    });
+  } finally {
+    socket.close();
+  }
+}
+
 export async function validateTemplate(template) {
   await request("/api/template", { method: "POST", body: JSON.stringify({ template }) });
 }
@@ -40,33 +68,33 @@ function receive(socket) {
 }
 
 async function registries() {
-  const socket = new WebSocket(HA_WS_URL);
-  await new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => reject(new Error("Home Assistant WebSocket connection timed out.")), 15_000);
-    socket.addEventListener("open", () => { clearTimeout(timeout); resolve(); }, { once: true });
-    socket.addEventListener("error", () => { clearTimeout(timeout); reject(new Error("Cannot connect to Home Assistant WebSocket.")); }, { once: true });
-  });
-  try {
-    await receive(socket);
-    socket.send(JSON.stringify({ type: "auth", access_token: HA_TOKEN }));
-    const auth = await receive(socket);
-    if (auth.type !== "auth_ok") throw new Error("Home Assistant WebSocket authentication failed.");
-    const commands = [
-      { id: 1, type: "config/device_registry/list" },
-      { id: 2, type: "config/entity_registry/list" },
-      { id: 3, type: "config/area_registry/list" },
-    ];
+  return websocketSession(async (call) => {
     const results = [];
-    for (const command of commands) {
-      socket.send(JSON.stringify(command));
-      const response = await receive(socket);
-      if (!response.success) throw new Error(`Home Assistant registry request failed: ${command.type}.`);
-      results.push(response.result);
+    for (const type of ["config/device_registry/list", "config/entity_registry/list", "config/area_registry/list"]) {
+      results.push(await call(type));
     }
     return results;
-  } finally {
-    socket.close();
-  }
+  });
+}
+
+export async function listDashboards() {
+  return websocketSession((call) => call("lovelace/dashboards/list"));
+}
+
+export async function createDashboard(metadata) {
+  return websocketSession((call) => call("lovelace/dashboards/create", metadata));
+}
+
+export async function updateDashboard(dashboardId, metadata) {
+  return websocketSession((call) => call("lovelace/dashboards/update", { dashboard_id: dashboardId, ...metadata }));
+}
+
+export async function deleteDashboard(dashboardId) {
+  return websocketSession((call) => call("lovelace/dashboards/delete", { dashboard_id: dashboardId }));
+}
+
+export async function saveDashboardConfig(urlPath, config) {
+  return websocketSession((call) => call("lovelace/config/save", { url_path: urlPath, config }));
 }
 
 const cameraTerms = ["person", "vehicle", "animal", "snapshot", "record", "stream", "privacy", "pir"];

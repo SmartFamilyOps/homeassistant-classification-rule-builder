@@ -2,6 +2,10 @@
 
 `card.jinja` is the source-controlled Markdown/Jinja card used by the Home Assistant Battery Health dashboard.
 
+The app provisions a missing dashboard with the sidebar title **Battery Health**
+and the `mdi:battery-sync` icon. It preserves an existing dashboard during
+restarts and upgrades.
+
 The card discovers battery sensor candidates at runtime, passes device and registered-entity evidence to the managed classifier, and honours the classifier's `battery_health` and `source_role` outputs. The `battery_monitor` Home Assistant label remains an explicit inclusion override; `battery_ignore` remains an explicit exclusion when no monitor override is present.
 
 The rendered table places Home Assistant availability immediately after the row number and uses hover titles to identify source entities or calculated/registry-derived content. Splunk **Configure** links open the local onboarding prototype in a new browser tab so Home Assistant's dashboard router cannot reinterpret the `/local/` URL.

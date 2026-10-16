@@ -133,6 +133,35 @@ function selectView(view) {
     tab.classList.toggle("active", selected);
     tab.setAttribute("aria-selected", String(selected));
   }
+  if (!rulesSelected) void loadDashboardStatus();
+}
+
+async function loadDashboardStatus() {
+  const copy = $("#battery-dashboard-status");
+  try {
+    const result = await api("dashboard");
+    copy.textContent = result.dashboard
+      ? `Installed as “${result.dashboard.title}” with ${result.dashboard.icon || "the default Home Assistant icon"}. Existing user settings are preserved during app updates.`
+      : "Not installed yet. The app will create it automatically with the SmartFamilyOps defaults.";
+  } catch (error) {
+    copy.textContent = `Dashboard status unavailable: ${error.message}`;
+  }
+}
+
+async function provisionDashboard() {
+  const button = $("#provision-dashboard");
+  button.disabled = true;
+  $("#battery-dashboard-status").textContent = "Applying the SmartFamilyOps Battery Health dashboard defaults…";
+  try {
+    const result = await api("dashboard/provision", { method: "POST", body: "{}" });
+    $("#battery-dashboard-status").textContent = result.created
+      ? "Battery Health was installed and added to the Home Assistant sidebar."
+      : "Battery Health now uses the shipped title, icon and canonical SmartFamilyOps path; its dashboard content was preserved.";
+  } catch (error) {
+    $("#battery-dashboard-status").textContent = `Dashboard provisioning failed safely: ${error.message}`;
+  } finally {
+    button.disabled = false;
+  }
 }
 
 function renderRules() {
@@ -495,6 +524,7 @@ $("#reload-app").addEventListener("click", () => {
   if (state.dirty && !confirm("Reload the app interface and discard the unpublished rule edits in this browser?")) return;
   window.location.reload();
 });
+$("#provision-dashboard").addEventListener("click", provisionDashboard);
 $("#save").addEventListener("click", validateDraft);
 $("#confirm-save").addEventListener("click", (event) => { event.preventDefault(); void publish(); });
 $("#confirm-dialog").addEventListener("close", () => { $("#confirm-save").disabled = false; });

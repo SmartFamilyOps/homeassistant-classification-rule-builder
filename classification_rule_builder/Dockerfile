@@ -15,6 +15,7 @@ RUN apk add --no-cache nodejs
 COPY run.sh /run.sh
 COPY src /app/src
 COPY public /app/public
+COPY dashboard /app/dashboard
 RUN chmod 0755 /run.sh
 
 WORKDIR /app

@@ -42,3 +42,12 @@ test("summary groups device and entity totals with active and inactive breakdown
   }
   assert.match(script, /enabledEntities \+ disabledEntities/);
 });
+
+test("the container includes the maintained Battery Health dashboard source", async () => {
+  const dockerfile = await readFile(new URL("../Dockerfile", import.meta.url), "utf8");
+  const card = await readFile(new URL("../dashboard/battery-health-card.jinja", import.meta.url), "utf8");
+  const example = await readFile(new URL("../../examples/battery-health-dashboard/card.jinja", import.meta.url), "utf8");
+  assert.match(dockerfile, /COPY dashboard \/app\/dashboard/);
+  assert.match(card, /Battery & Power Observability/);
+  assert.equal(card, example, "the packaged dashboard and documented example must stay identical");
+});

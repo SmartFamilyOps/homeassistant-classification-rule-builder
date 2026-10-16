@@ -28,6 +28,11 @@ Use the unqualified repository URL for the current stable release. Back up the a
 
 - `classification_rule_builder/` — installable Home Assistant app
 - `examples/battery-health-dashboard/` — SmartFamilyOps discovery-dashboard example
+
+On first start, the app provisions a missing Battery Health dashboard with the
+`mdi:battery-sync` sidebar icon at
+`/smartfamilyops-dashboard/SmartFamilyOps-battery-health`. Existing dashboard
+customisations are preserved during upgrades.
 - `.github/workflows/test.yml` — automated catalogue and packaging checks
 
 The app writes its catalogue to `/config/smartfamilyops/classification-rule-builder/classification_rules.json` and generates `/config/custom_templates/smartfamilyops_device_classification.jinja` after validation.

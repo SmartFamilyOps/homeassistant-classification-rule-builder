@@ -24,6 +24,8 @@ The app configuration is organised into two in-app sections:
 - Recognises and imports the established SmartFamilyOps Jinja classifier on first run; an unfamiliar template is refused rather than overwritten.
 - Opens Home Assistant's installed-apps page for update checks and app management without granting this app elevated Supervisor permissions.
 - Reloads the app interface on demand and serves frontend assets without browser caching so a newly installed interface appears immediately.
+- Creates the Battery Health dashboard on first start when the canonical SmartFamilyOps dashboard is absent, using the shipped title, icon, route and maintained card.
+- Preserves an existing dashboard during app starts and upgrades; the Dashboard Builder can explicitly reapply metadata defaults without replacing its cards.
 
 ## Managed files
 
@@ -93,6 +95,20 @@ prefix and the app `slug`, currently `/app/local_classification_rule_builder`.
 Renaming the slug would install a second app identity rather than provide a
 cosmetic redirect, so a future branded URL migration must copy the managed
 catalogue and app options before the old identity is retired.
+
+On first start, the app checks for the canonical Battery Health dashboard. If it
+is missing, the app creates it in storage mode with **Battery Health** as the
+sidebar title, `mdi:battery-sync` as the icon, and this route:
+
+```text
+/smartfamilyops-dashboard/SmartFamilyOps-battery-health
+```
+
+Home Assistant requires a custom dashboard URL key to contain a hyphen, so
+`smartfamilyops` is not a valid first route segment. Existing dashboards are
+left unchanged during app restarts and upgrades. Use the Dashboard Builder's
+explicit defaults action when the shipped title and icon should replace local
+metadata; existing cards are retained.
 
 The **Classification Rules** and **Dashboard Builder** tabs are inside **Open Web UI** (and the app's sidebar page). Home Assistant's outer **Info**, **Documentation**, **Configuration** and **Log** tabs are fixed app-management tabs. Use **Open Home Assistant Apps** to go directly to Home Assistant's installed-apps page, where its own refresh control checks for updates. **Refresh Home Assistant data** re-reads device, entity and area discovery without replacing unpublished rule edits. **Reload app interface** reconnects the ingress page and warns before discarding unpublished edits.
 
