@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.13.0
+
+- Sort managed discovery-list rows alphabetically by the current Home Assistant device name.
+- Assign row numbers after sorting so numbering reflects the visible order consistently after discovery refreshes and device renames.
+
 ## 0.12.0
 
 - Add managed list-column selection for compatible dashboards.

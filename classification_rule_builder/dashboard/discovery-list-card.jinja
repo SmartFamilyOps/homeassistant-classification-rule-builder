@@ -8,20 +8,21 @@
 {% for column in columns -%}{% set header.text = header.text ~ ' | ' ~ labels[column] %}{% endfor -%}
 {% set header.text = header.text ~ ' |\n|--:' -%}
 {% for column in columns -%}{% set header.text = header.text ~ '|:--' %}{% endfor -%}
-{% set rows = namespace(text=header.text) -%}
+{% set entries = namespace(items=[]) -%}
 {% for d in catalogued_devices -%}
   {% set available = namespace(value=false) -%}
   {% for entity_id in d.relevant_entity_ids -%}
     {% set state = states[entity_id] -%}
     {% if state is not none and state.state | lower not in ['unknown', 'unavailable', 'none', ''] -%}{% set available.value = true %}{% endif -%}
   {% endfor -%}
-  {% set name = device_name(d.device_id) | default(d.name, true) -%}
-  {% set area = area_name(d.device_id) | default(d.area, true) -%}
-  {% set manufacturer = device_attr(d.device_id, 'manufacturer') | default(d.manufacturer, true) -%}
-  {% set status = '✅' if available.value else '❌' -%}
+  {% set entry = {'device': d, 'name': device_name(d.device_id) | default(d.name, true), 'area': area_name(d.device_id) | default(d.area, true), 'manufacturer': device_attr(d.device_id, 'manufacturer') | default(d.manufacturer, true), 'status': '✅' if available.value else '❌'} -%}
+  {% set entries.items = entries.items + [entry] -%}
+{% endfor -%}
+{% set rows = namespace(text=header.text) -%}
+{% for entry in entries.items | sort(attribute='name') -%}
   {% set cells = namespace(text='\n| ' ~ loop.index) -%}
   {% for column in columns -%}
-    {% set value = status if column == 'online' else '**' ~ name ~ '**' if column == 'device' else area if column == 'location' else manufacturer if column == 'manufacturer' else d.function if column == 'function' else d.asset_group if column == 'asset_group' else d.entity_ids | length if column == 'entities' else '' -%}
+    {% set value = entry.status if column == 'online' else '**' ~ entry.name ~ '**' if column == 'device' else entry.area if column == 'location' else entry.manufacturer if column == 'manufacturer' else entry.device.function if column == 'function' else entry.device.asset_group if column == 'asset_group' else entry.device.entity_ids | length if column == 'entities' else '' -%}
     {% set cells.text = cells.text ~ ' | ' ~ value -%}
   {% endfor -%}
   {% set rows.text = rows.text ~ cells.text ~ ' |' -%}

@@ -103,6 +103,14 @@ test("Dashboard Builder exposes explicit provisioning and the shipped defaults",
   assert.match(script, /columns:/);
 });
 
+test("managed discovery lists sort by current device name before assigning row numbers", async () => {
+  const template = await readFile(new URL("../dashboard/discovery-list-card.jinja", import.meta.url), "utf8");
+  assert.match(template, /'name': device_name\(d\.device_id\) \| default\(d\.name, true\)/);
+  assert.match(template, /entries\.items \| sort\(attribute='name'\)/);
+  assert.match(template, /text='\\n\| ' ~ loop\.index/);
+  assert.match(template, /{% set header = namespace\(text='\| #'\) -%}/);
+});
+
 test("fresh dashboards receive an independent list identity and policy", () => {
   const policy = { match: "any", conditions: [{ field: "entity_device_class", operator: "equals", value: "battery" }] };
   const dashboard = newFreshDashboardDefinition({ title: "Garden devices", slug: "garden-devices" }, policy, []);

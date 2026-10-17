@@ -54,5 +54,6 @@ The reusable classifier and local device catalogue are deliberately separate. Th
 
 Use **Create new dashboard** when a list should start from a clean definition rather than inherit another view. The app creates the Home Assistant dashboard registration, a managed table view, an app-owned definition and an independent automatic-candidate policy. List dashboards are the supported baseline; specialised visualisations can be introduced later without weakening the shared classifier or dashboard ownership boundary.
 For managed list dashboards, choose the presentation columns in the definition editor. The first numbered column is always retained so the result count is visible; the selected fields are rendered after it. Saving the definition regenerates only the app-owned list card.
+Managed list rows are sorted alphabetically by the current Home Assistant device name. Row numbers are assigned after sorting, so they follow the displayed order, including after a live device rename.
 
 See the project README for the dashboard input contract and recovery procedure.
